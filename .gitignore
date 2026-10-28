@@ -31,6 +31,7 @@ out/
 .next/
 .nuxt/
 .output/
+dist-browser/dist/
 
 # Coverage / test
 coverage/

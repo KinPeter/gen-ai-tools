@@ -3,15 +3,29 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["dist/**", "output/**", "node_modules/**"],
+    ignores: [
+      "dist/**",
+      "output/**",
+      "node_modules/**",
+      "coverage/**",
+      "dist-browser/dist/**",
+    ],
   },
   eslint.configs.recommended,
   {
-    files: ["**/*.{js,mjs}"],
+    files: ["**/*.{js,mjs,jsx}"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      globals: globals.node,
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
     },
   },
 ];

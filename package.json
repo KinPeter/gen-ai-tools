@@ -9,6 +9,8 @@
   "scripts": {
     "comfy-batch": "node comfyui/batch.mjs",
     "convert-all": "node comfyui/jobs/convert.mjs",
+    "dist-browser": "node dist-browser/serve.mjs",
+    "dist-browser:dev": "vite --config dist-browser/vite.config.mjs",
     "find-log-from-files": "node comfyui/jobs/find-log-from-files.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -29,16 +31,20 @@
     "@aws-sdk/lib-dynamodb": "^3.1151.0",
     "basic-ftp": "^6.2.3",
     "dotenv": "^18.0.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "sharp": "^0.35.5",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "@vitest/coverage-v8": "^5.0.4",
     "eslint": "^10.12.0",
     "globals": "^17.13.0",
     "msw": "^3.0.3",
     "prettier": "^3.9.10",
+    "vite": "^8.3.5",
     "vitest": "^5.0.4"
   }
 }

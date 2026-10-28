@@ -1,4 +1,5 @@
 dist/
+dist-browser/dist/
 output/
 node_modules/
 
