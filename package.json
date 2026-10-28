@@ -20,7 +20,8 @@
     "stop-pod": "node runpod/stop-pod.mjs",
     "build-find-ui": "node logging/build-find-ui.mjs",
     "deploy-find-lambda": "node logging/deploy-find-lambda.mjs",
-    "deploy-find-ui": "npm run build-find-ui && node logging/deploy-find-ui.mjs"
+    "deploy-find-ui": "npm run build-find-ui && node logging/deploy-find-ui.mjs",
+    "log-cleanup": "node logging/log-cleanup.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1151.0",

@@ -22,6 +22,7 @@ export default defineConfig({
         "**/.tmp/**",
         "**/workflows/*.json",
         "**/logging/temp-scripts/**",
+        "**/logging/log-cleanup.mjs",
       ],
     },
   },
