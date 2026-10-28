@@ -1,13 +1,1 @@
-.App {
-  text-align: center;
-  padding: 2rem;
-}
-
-h1 {
-  color: #333;
-  font-size: 2rem;
-}
-
-p {
-  color: #666;
-}
+/* App-level styles — everything else uses CSS variables */

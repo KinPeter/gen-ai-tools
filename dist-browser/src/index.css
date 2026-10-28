@@ -1,3 +1,51 @@
+/* ── Theme Variables ── */
+
+:root {
+  /* Light theme */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #e8e8e8;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --border-color: #ddd;
+  --selection-bg: #e3f2fd;
+  --selection-text: #0d47a1;
+  --highlight-bg: #e0e0e0;
+  --topbar-bg: #fafafa;
+  --error-bg: #ffebee;
+  --error-text: #c62828;
+  --error-border: #ef9a9a;
+
+  /* Layout */
+  --topbar-height: 48px;
+  --handle-width: 4px;
+}
+
+[data-theme="dark"] {
+  /* Dark theme */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --text-primary: #e0e0e0;
+  --text-secondary: #999999;
+  --border-color: #333;
+  --selection-bg: #1a3a5c;
+  --selection-text: #90caf9;
+  --highlight-bg: #2a2a4a;
+  --topbar-bg: #16213e;
+  --error-bg: #3e1a1a;
+  --error-text: #ff8a80;
+  --error-border: #ef9a9a;
+}
+
+/* ── Reset ── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   font-family:
@@ -5,5 +53,6 @@ body {
     Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f5;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }

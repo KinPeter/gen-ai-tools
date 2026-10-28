@@ -1,11 +1,12 @@
+import { ThemeProvider } from "./context/ThemeContext";
+import { Layout } from "./components/Layout/Layout";
 import "./App.css";
 
 function App() {
   return (
-    <div className="App">
-      <h1>Dist Browser</h1>
-      <p>Welcome to the Dist Browser application.</p>
-    </div>
+    <ThemeProvider>
+      <Layout />
+    </ThemeProvider>
   );
 }
 

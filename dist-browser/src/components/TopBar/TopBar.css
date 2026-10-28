@@ -1,0 +1,56 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--topbar-height);
+  min-height: var(--topbar-height);
+  padding: 0 12px;
+  background: var(--topbar-bg);
+  border-bottom: 1px solid var(--border-color);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  color: var(--text-primary);
+}
+
+.topbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.topbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.topbar-button:hover {
+  background: var(--bg-tertiary);
+}
+
+.topbar-button:active {
+  background: var(--highlight-bg);
+}
+
+.topbar-button svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-primary);
+}

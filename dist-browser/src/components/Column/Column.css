@@ -1,0 +1,30 @@
+.column {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.column:last-child {
+  border-right: none;
+}
+
+.column-header {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.column-content {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  color: var(--text-primary);
+}

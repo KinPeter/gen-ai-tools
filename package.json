@@ -10,6 +10,7 @@
     "comfy-batch": "node comfyui/batch.mjs",
     "convert-all": "node comfyui/jobs/convert.mjs",
     "dist-browser": "node dist-browser/serve.mjs",
+    "dist-browser:build": "vite build --config dist-browser/vite.config.mjs",
     "dist-browser:dev": "vite --config dist-browser/vite.config.mjs",
     "find-log-from-files": "node comfyui/jobs/find-log-from-files.mjs",
     "test": "vitest run",
