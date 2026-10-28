@@ -1,0 +1,124 @@
+.file-browser {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.file-browser-loading {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.file-browser-error {
+  margin: 8px 12px;
+  padding: 8px 12px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  border-radius: 4px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.file-browser-list {
+  flex: 1;
+  overflow-y: auto;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.file-browser-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.file-browser-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+  transition: background-color 0.1s ease;
+  font-size: 13px;
+}
+
+.file-browser-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.file-browser-item--selected {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+.file-browser-item--selected:hover {
+  background: var(--selection-bg);
+}
+
+.file-browser-icon {
+  flex-shrink: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.file-browser-icon svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.file-browser-icon-parent {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.file-browser-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-browser-name--parent {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.file-browser-footer {
+  padding: 8px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.file-browser-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.file-browser-refresh:hover {
+  background: var(--bg-tertiary);
+}
+
+.file-browser-refresh:active {
+  background: var(--bg-tertiary);
+}

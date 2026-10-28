@@ -1,5 +1,5 @@
 import { build } from "vite";
-import { createServer } from "node:http";
+import { createServer } from "./server.mjs";
 import { fileURLToPath } from "node:url";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -14,16 +14,14 @@ async function main() {
     },
   });
 
-  // Start HTTP server serving the built files
-  const port = Number(process.env.DIST_BROWSER_PORT) || 9324;
+  const { start, stop } = createServer();
 
-  const server = createServer((_req, res) => {
-    res.writeHead(200, { "Content-Type": "text/html" });
-    res.end("<h1>Dist Browser</h1><p>Server running</p>");
-  });
+  await start();
 
-  server.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+  // Graceful shutdown
+  process.on("SIGINT", async () => {
+    await stop();
+    process.exit(0);
   });
 }
 
