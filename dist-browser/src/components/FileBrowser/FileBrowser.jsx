@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./FileBrowser.css";
 
 const LAST_FOLDER_KEY = "dist-browser-last-folder";
@@ -52,8 +52,16 @@ export function FileBrowser({
   onRefresh,
 }) {
   const listRef = useRef(null);
+  const parentButtonRef = useRef(null);
   const loadingRef = useRef(loading);
   loadingRef.current = loading;
+  const isKeyboardNavigatingRef = useRef(false);
+
+  // Hovered index for mouse hover tracking
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
+  // Track last currentPath to detect navigation
+  const lastPathRef = useRef(currentPath);
 
   // Extract parent folder path (DRY helper)
   function getParentPath(path) {
@@ -80,6 +88,40 @@ export function FileBrowser({
     }
   }, [currentPath]);
 
+  // Auto-focus list after navigating to a new folder
+  useEffect(() => {
+    if (lastPathRef.current !== currentPath) {
+      lastPathRef.current = currentPath;
+      // Brief delay to allow DOM to update after re-render
+      const timer = setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.focus();
+        }
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [currentPath]);
+
+  // Focus the ".." button when the list receives keyboard focus
+  const handleListFocus = useCallback(() => {
+    isKeyboardNavigatingRef.current = true;
+    if (currentPath && parentButtonRef.current) {
+      parentButtonRef.current.focus();
+    }
+  }, [currentPath]);
+
+  // Focus the ".." button programmatically
+  const focusParentButton = useCallback(() => {
+    if (parentButtonRef.current) {
+      parentButtonRef.current.focus();
+    }
+  }, []);
+
+  // Clear mouse hover when keyboard interaction starts
+  const clearHover = useCallback(() => {
+    setHoveredIndex(null);
+  }, []);
+
   // Keyboard navigation
   const handleKeyDown = useCallback(
     (e) => {
@@ -91,6 +133,8 @@ export function FileBrowser({
       switch (e.key) {
         case "ArrowDown": {
           e.preventDefault();
+          isKeyboardNavigatingRef.current = true;
+          clearHover();
           const next = (selectedIndex + 1) % listLength;
           // Notify parent of new selection
           onSelect?.(entries[next] || null);
@@ -98,6 +142,8 @@ export function FileBrowser({
         }
         case "ArrowUp": {
           e.preventDefault();
+          isKeyboardNavigatingRef.current = true;
+          clearHover();
           const prev = (selectedIndex - 1 + listLength) % listLength;
           onSelect?.(entries[prev] || null);
           break;
@@ -134,29 +180,47 @@ export function FileBrowser({
           }
           break;
         }
+        case "Home": {
+          e.preventDefault();
+          if (currentPath && entries.length > 0) {
+            isKeyboardNavigatingRef.current = true;
+            clearHover();
+            onSelect?.(entries[0] || null);
+            focusParentButton();
+          }
+          break;
+        }
         default:
           break;
       }
     },
-    [selectedIndex, entries, currentPath, onNavigate, onSelect, onDelete],
+    [
+      selectedIndex,
+      entries,
+      currentPath,
+      onNavigate,
+      onSelect,
+      onDelete,
+      clearHover,
+      focusParentButton,
+    ],
   );
 
-  // Handle single click: select item
+  // Handle single click: select item (no folder-up on single-click)
   const handleClick = useCallback(
     (index) => {
       if (loadingRef.current) return;
       const entry = entries[index];
       if (!entry) return;
 
-      // Navigate to parent folder on ".." click
+      // Single-click on ".." does nothing — use double-click or Enter instead
       if (entry.name === "..") {
-        onNavigate?.(getParentPath(currentPath));
         return;
       }
 
       onSelect?.(entry);
     },
-    [entries, currentPath, onNavigate, onSelect],
+    [entries, onSelect],
   );
 
   // Handle double click: open folder
@@ -207,8 +271,15 @@ export function FileBrowser({
       <div
         ref={listRef}
         className="file-browser-list"
-        tabIndex={-1}
+        tabIndex={0}
         onKeyDown={handleKeyDown}
+        onFocus={handleListFocus}
+        onMouseDown={() => {
+          isKeyboardNavigatingRef.current = false;
+        }}
+        onTouchStart={() => {
+          isKeyboardNavigatingRef.current = false;
+        }}
       >
         {entries.length === 0 && !loading ? (
           <div className="file-browser-empty">This folder is empty.</div>
@@ -225,18 +296,33 @@ export function FileBrowser({
                 data-index={index}
                 className={`file-browser-item${
                   isSelected ? " file-browser-item--selected" : ""
-                }`}
+                }${hoveredIndex === index ? " file-browser-item--hovered" : ""}`}
                 role="treeitem"
                 aria-selected={isSelected}
                 aria-label={isParent ? "Parent folder" : entry.name}
                 tabIndex={-1}
                 onClick={() => handleClick(index)}
                 onDoubleClick={() => handleDoubleClick(index)}
+                onMouseEnter={() => {
+                  isKeyboardNavigatingRef.current = false;
+                  setHoveredIndex(index);
+                }}
+                onMouseLeave={() => {
+                  setHoveredIndex(null);
+                }}
               >
                 {/* Icon column */}
                 <span className="file-browser-icon">
                   {isParent ? (
-                    <span className="file-browser-icon-parent">↑</span>
+                    <button
+                      ref={parentButtonRef}
+                      type="button"
+                      className="file-browser-icon-parent"
+                      tabIndex={0}
+                      aria-label="Go to parent folder"
+                    >
+                      ↑
+                    </button>
                   ) : isFolder ? (
                     <FolderIcon />
                   ) : isImage ? (

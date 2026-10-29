@@ -28,6 +28,41 @@
   overflow-y: auto;
   outline: none;
   -webkit-tap-highlight-color: transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+/* Custom thin scrollbar — follows theme */
+.file-browser-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.file-browser-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-browser-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.file-browser-list::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.file-browser-list::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active);
+}
+
+.file-browser-list:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+@supports selector(:focus-visible) {
+  .file-browser-list:not(:focus-visible) {
+    box-shadow: none;
+  }
 }
 
 .file-browser-empty {
@@ -47,9 +82,14 @@
   user-select: none;
   transition: background-color 0.1s ease;
   font-size: 13px;
+  outline: none;
 }
 
 .file-browser-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.file-browser-item--hovered {
   background: var(--bg-tertiary);
 }
 
@@ -81,6 +121,16 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--text-secondary);
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  line-height: 1;
+}
+
+.file-browser-icon-parent:focus-visible {
+  color: var(--accent-color);
 }
 
 .file-browser-name {

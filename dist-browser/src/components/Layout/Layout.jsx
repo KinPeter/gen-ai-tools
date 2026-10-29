@@ -75,6 +75,7 @@ export function Layout() {
           setSelectedEntry(null);
           setSelectedImagePath(null);
         }
+        return allEntries;
       } catch (err) {
         if (err.name !== "AbortError") {
           setError(err.message || "Failed to load directory");
@@ -127,11 +128,14 @@ export function Layout() {
     async (entry) => {
       if (!entry || entry.name === "..") return;
 
-      const itemPath = currentPath
-        ? `${currentPath}/${entry.name}`
-        : entry.name;
+      // Save the entry that was selected before deletion
+      const wasLastItem = selectedIndex >= entries.length - 1;
 
       try {
+        const itemPath = currentPath
+          ? `${currentPath}/${entry.name}`
+          : entry.name;
+
         const response = await fetch("/api/trash", {
           method: "POST",
           headers: {
@@ -147,12 +151,24 @@ export function Layout() {
         }
 
         // Refresh the listing on success
-        await fetchDirectory(currentPath);
+        const newEntries = await fetchDirectory(currentPath);
+
+        // Focus the next (now same-index) item
+        const newIndex = wasLastItem
+          ? Math.max(0, selectedIndex - 1)
+          : selectedIndex;
+        const newEntry = newEntries[newIndex];
+        setSelectedIndex(newIndex);
+        if (newEntry && newEntry.type !== "folder") {
+          setSelectedEntry(newEntry);
+        } else {
+          setSelectedEntry(null);
+        }
       } catch {
         setError("Failed to move item to trash");
       }
     },
-    [currentPath, fetchDirectory],
+    [currentPath, fetchDirectory, selectedIndex, entries],
   );
 
   const handleRefresh = useCallback(() => {
@@ -174,7 +190,6 @@ export function Layout() {
             currentPath={currentPath}
             entries={entries}
             selectedIndex={selectedIndex}
-            selectedEntry={selectedEntry}
             loading={loading}
             error={error}
             onNavigate={handleNavigate}
