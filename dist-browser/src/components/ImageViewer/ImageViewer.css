@@ -91,12 +91,14 @@
 .image-viewer-filename-overlay {
   position: absolute;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: fit-content;
   background-color: rgba(0, 0, 0, 0.6);
   color: #fff;
   font-size: 11px;
-  padding: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
   text-align: center;
   word-break: break-word;
 }
