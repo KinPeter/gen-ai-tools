@@ -1,4 +1,5 @@
 import { useTheme } from "../../context/ThemeContext";
+import { buildTitle } from "../../utils/title.mjs";
 import "./TopBar.css";
 
 const SunIcon = () => (
@@ -55,12 +56,12 @@ const RefreshIcon = () => (
   </svg>
 );
 
-export function TopBar({ onRefresh }) {
+export function TopBar({ onRefresh, currentPath = "" }) {
   const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="topbar">
-      <div className="topbar-title">Dist Browser</div>
+      <div className="topbar-title">{buildTitle(currentPath)}</div>
       <div className="topbar-actions">
         <button
           className="topbar-button"

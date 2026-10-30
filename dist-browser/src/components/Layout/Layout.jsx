@@ -21,7 +21,7 @@ export function Layout() {
 
   return (
     <div className="app-layout">
-      <TopBar onRefresh={browser.refresh} />
+      <TopBar onRefresh={browser.refresh} currentPath={currentPath} />
       <div className="columns-container">
         <Column
           title="File Browser"
