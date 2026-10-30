@@ -44,6 +44,7 @@ function apiResponse(body, status = 200) {
  */
 function mockApi({
   listings,
+  logsEntries = [],
   trashResponse = null,
   trashError = null,
   fsFailOnCall = null,
@@ -63,6 +64,13 @@ function mockApi({
         }
         const path = decodeURIComponent(requestUrl.slice("/api/fs/".length));
         return apiResponse({ path, entries: state.listings[path] ?? [] });
+      }
+
+      if (requestUrl === "/api/logs") {
+        return apiResponse({
+          entries: logsEntries,
+          fileCount: logsEntries.length,
+        });
       }
 
       if (requestUrl === "/api/trash") {
@@ -226,10 +234,9 @@ describe("Layout delete flow", () => {
     expect(
       container.querySelector(".image-viewer-image").getAttribute("alt"),
     ).toBe("img3.png");
-    expect(container.querySelector(".log-viewer-placeholder")).toBeTruthy();
-    expect(
-      container.querySelector(".log-viewer-placeholder p").textContent,
-    ).toBe("Log for: img3.png");
+    // LogViewer renders the "no match" state when no log entry is available
+    expect(container.querySelector(".log-viewer-empty")).toBeTruthy();
+    expect(container.querySelector(".log-viewer-no-match")).toBeTruthy();
 
     // Refreshed listing after the trash call
     const urls = fetchMock.mock.calls.map(([url]) => String(url));

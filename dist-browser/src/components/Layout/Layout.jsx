@@ -1,6 +1,8 @@
+import { useCallback, useState } from "react";
 import { useColumnResize } from "../../hooks/useColumnResize";
 import { useFileBrowserState } from "../../hooks/useFileBrowserState";
 import { useFolderPath } from "../../hooks/useFolderPath";
+import { useLogEntries } from "../../hooks/useLogEntries";
 import { TopBar } from "../TopBar/TopBar";
 import { Column } from "../Column/Column";
 import { ResizeHandle } from "../ResizeHandle/ResizeHandle";
@@ -19,9 +21,20 @@ export function Layout() {
   const { currentPath, navigateTo } = useFolderPath();
   const browser = useFileBrowserState(currentPath, navigateTo);
 
+  // Log entries: fetch on mount, re-fetch when the refresh key changes.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const logs = useLogEntries(refreshKey);
+
+  // Handle refresh: re-fetch both the directory listing and the log entries
+  // in the same event so React batches them into one update.
+  const handleRefresh = useCallback(() => {
+    browser.refresh();
+    setRefreshKey((k) => k + 1);
+  }, [browser]);
+
   return (
     <div className="app-layout">
-      <TopBar onRefresh={browser.refresh} currentPath={currentPath} />
+      <TopBar onRefresh={handleRefresh} currentPath={currentPath} />
       <div className="columns-container">
         <Column
           title="File Browser"
@@ -60,7 +73,11 @@ export function Layout() {
             minWidth: minWidths[2],
           }}
         >
-          <LogViewer entry={browser.selectedEntry} />
+          <LogViewer
+            entry={browser.selectedEntry}
+            logEntries={logs.entries}
+            logsLoading={logs.loading}
+          />
         </Column>
       </div>
     </div>

@@ -1,10 +1,73 @@
-.log-viewer-placeholder {
+/* ── Column content wrapper ──────────────────────────────────────────── */
+
+/* Wraps the log content so it is vertically centered in the column when
+   the content is smaller than the available space.  When the content
+   overflows, the wrapper scrolls internally instead of the parent column. */
+.log-viewer-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+/* ── Code block ─────────────────────────────────────────────────────── */
+
+.log-viewer-code {
+  margin: 0;
   padding: 12px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure the <code> element inherits the same styles */
+.log-viewer-code code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  word-wrap: break-word;
+  white-space: inherit;
+  overflow-wrap: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* ── Empty / no-match / loading states ───────────────────────────────── */
+
+.log-viewer-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.log-viewer-empty-text {
   color: var(--text-secondary);
   font-size: 13px;
 }
 
-.log-viewer-note {
-  font-style: italic;
-  font-size: 12px;
+.log-viewer-no-match {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.log-viewer-loading-text {
+  color: var(--text-secondary);
+  font-size: 13px;
 }

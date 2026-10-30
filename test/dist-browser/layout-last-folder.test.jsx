@@ -32,6 +32,13 @@ const rootListing = {
 function mockApi(listings, statuses = {}) {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const requestUrl = String(url);
+    if (requestUrl === "/api/logs") {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ entries: [], fileCount: 0 }),
+      };
+    }
     if (!requestUrl.startsWith("/api/fs/")) {
       throw new Error(`Unexpected request: ${requestUrl}`);
     }
@@ -87,7 +94,9 @@ function itemByName(container, name) {
 }
 
 function fetchedPaths(fetchMock) {
-  return fetchMock.mock.calls.map(([url]) => String(url));
+  return fetchMock.mock.calls
+    .map(([url]) => String(url))
+    .filter((url) => url !== "/api/logs");
 }
 
 async function waitForRootListing(container) {
