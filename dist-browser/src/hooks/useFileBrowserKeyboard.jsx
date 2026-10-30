@@ -15,7 +15,6 @@ export function useFileBrowserKeyboard({
   currentPath,
   loading,
   setHoveredIndex,
-  focusParentButton,
   onNavigate,
   onSelect,
   onDelete,
@@ -77,7 +76,6 @@ export function useFileBrowserKeyboard({
           if (currentPath && entries.length > 0) {
             setHoveredIndex(null);
             onSelect?.(entries[0] || null);
-            focusParentButton();
           }
           break;
         }
@@ -91,7 +89,6 @@ export function useFileBrowserKeyboard({
       currentPath,
       loading,
       setHoveredIndex,
-      focusParentButton,
       onNavigate,
       onSelect,
       onDelete,

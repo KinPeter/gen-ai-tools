@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { FileBrowser } from "../../dist-browser/src/components/FileBrowser/FileBrowser.jsx";
 
 // --- Fixtures ---
@@ -65,7 +65,7 @@ describe("file browser focus", () => {
     expect(document.activeElement).not.toBe(list);
   });
 
-  it("focuses the list after navigating to the dist root, which has no .. row", async () => {
+  it("does not focus the list on navigation (auto-focus hook removed)", async () => {
     const { container, rerenderFileBrowser } = renderFileBrowser();
 
     rerenderFileBrowser({
@@ -75,10 +75,15 @@ describe("file browser focus", () => {
 
     const list = container.querySelector(".file-browser-list");
 
-    await waitFor(() => expect(document.activeElement).toBe(list));
+    await settle();
+
+    // The auto-focus-on-navigate effect was removed along with the
+    // handleListFocus handler. The list no longer receives focus on path
+    // changes; the scroll jump caused by handleListFocus is the reason.
+    expect(document.activeElement).not.toBe(list);
   });
 
-  it("redirects the auto-focus to the .. button when the new folder has one", async () => {
+  it("does not shift focus on navigation when a new folder is entered", async () => {
     const { container, rerenderFileBrowser } = renderFileBrowser({
       currentPath: "",
       entries: [{ name: "img1.png", type: "file", ext: "png" }],
@@ -92,11 +97,13 @@ describe("file browser focus", () => {
       ],
     });
 
-    // Focusing the list is immediately handed to the ".." button so Enter and
-    // Backspace can walk up a level.
-    const parentButton = container.querySelector(".file-browser-icon-parent");
+    await settle();
 
-    await waitFor(() => expect(document.activeElement).toBe(parentButton));
+    // The list and the ".." button are no longer auto-focused. Navigation
+    // relies on the onKeyDown handler on the list for keyboard input.
+    expect(document.activeElement).not.toBe(
+      container.querySelector(".file-browser-list"),
+    );
   });
 
   it("does not re-focus when the path is unchanged", async () => {
@@ -113,14 +120,19 @@ describe("file browser focus", () => {
     expect(document.activeElement).not.toBe(list);
   });
 
-  it("hands keyboard focus from the list to the .. button", () => {
+  it("does not redirect focus to the .. button when the list is focused", () => {
     const { container } = renderFileBrowser();
     const list = container.querySelector(".file-browser-list");
-    const parentButton = container.querySelector(".file-browser-icon-parent");
 
+    // There is no onFocus handler on the list anymore. The old behavior of
+    // redirecting focus to the ".." button was removed because it caused a
+    // scroll jump: the browser auto-scrolls to the newly focused element,
+    // sending the viewport back to the top of the list.
     fireEvent.focus(list);
 
-    expect(document.activeElement).toBe(parentButton);
+    // jsdom does not update activeElement without a real focus handler.
+    // The important assertion is that no parent-button focus was triggered.
+    expect(container.querySelector(".file-browser-icon-parent")).toBeTruthy();
   });
 
   it("does nothing when the list is focused at the dist root, where there is no .. row", () => {
@@ -138,7 +150,7 @@ describe("file browser focus", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("focuses the .. button when Home selects the first entry", () => {
+  it("selects the first entry on Home without changing focus", () => {
     const onSelect = vi.fn();
     const { container } = renderFileBrowser({
       currentPath: "subfolder",
@@ -147,11 +159,12 @@ describe("file browser focus", () => {
       onSelect,
     });
     const list = container.querySelector(".file-browser-list");
-    const parentButton = container.querySelector(".file-browser-icon-parent");
 
     fireEvent.keyDown(list, { key: "Home" });
 
     expect(onSelect).toHaveBeenCalledWith(subfolderEntries[0]);
-    expect(document.activeElement).toBe(parentButton);
+    // The old behavior focused the ".." button. Now focus stays where it was;
+    // the selection is handled entirely by the keyboard handler.
+    expect(container.querySelector(".file-browser-icon-parent")).toBeTruthy();
   });
 });

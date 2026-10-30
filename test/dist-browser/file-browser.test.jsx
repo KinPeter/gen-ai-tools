@@ -345,8 +345,6 @@ describe("FileBrowser", () => {
   });
 
   describe("scroll selected entry into view", () => {
-    // jsdom has no working scrollIntoView, so stub it on the prototype and
-    // record which row (by data-index) the effect asked to scroll.
     function stubScrollIntoView() {
       const scrolled = [];
       Element.prototype.scrollIntoView = function () {
@@ -364,7 +362,6 @@ describe("FileBrowser", () => {
 
       rerenderFileBrowser({ selectedIndex: 3 });
 
-      // React flushes passive effects just after the commit, so poll for it.
       await waitFor(() => expect(scrolled).toEqual(["1", "3"]));
     });
 

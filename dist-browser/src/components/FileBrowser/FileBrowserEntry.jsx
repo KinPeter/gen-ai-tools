@@ -25,7 +25,6 @@ export function FileBrowserEntry({
   isHovered,
   currentPath,
   loading,
-  parentButtonRef,
   setHoveredIndex,
   onNavigate,
   onSelect,
@@ -69,7 +68,6 @@ export function FileBrowserEntry({
       <span className="file-browser-icon">
         {isParent ? (
           <button
-            ref={parentButtonRef}
             type="button"
             className="file-browser-icon-parent"
             tabIndex={-1}

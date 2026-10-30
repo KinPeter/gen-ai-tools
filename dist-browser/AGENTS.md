@@ -36,7 +36,7 @@ Vite + React browser UI for serving and browsing `dist/` outputs (JPG images fro
   - `useSelectedEntryScroll/` — scroll management for selected items
   - `useTrashHandler/` — move files to .trash
   - `useFolderPath/` — current path tracking
-  - `useFileBrowserFocus/`, `useFileBrowserHover/`, `useFileBrowserKeyboard/` — interaction handlers
+  - `useFileBrowserHover/`, `useFileBrowserKeyboard/` — interaction handlers
 - **Utils** (under `src/utils/`):
   - `entries.mjs` — entry sorting and comparison
   - `image-url.mjs` — image URL generation

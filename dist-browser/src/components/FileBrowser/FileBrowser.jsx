@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { useFileBrowserFocus } from "../../hooks/useFileBrowserFocus";
 import { useFileBrowserHover } from "../../hooks/useFileBrowserHover";
 import { useFileBrowserKeyboard } from "../../hooks/useFileBrowserKeyboard";
 import { useSelectedEntryScroll } from "../../hooks/useSelectedEntryScroll";
@@ -23,18 +22,11 @@ export function FileBrowser({
   onRefresh,
 }) {
   const listRef = useRef(null);
-  const parentButtonRef = useRef(null);
 
   const { hoveredIndex, setHoveredIndex } = useFileBrowserHover(entries);
 
   // The selected row is scrolled into view whenever the selection moves.
   useSelectedEntryScroll(listRef, selectedIndex);
-
-  const { handleListFocus, focusParentButton } = useFileBrowserFocus(
-    listRef,
-    parentButtonRef,
-    currentPath,
-  );
 
   const handleKeyDown = useFileBrowserKeyboard({
     entries,
@@ -42,7 +34,6 @@ export function FileBrowser({
     currentPath,
     loading,
     setHoveredIndex,
-    focusParentButton,
     onNavigate,
     onSelect,
     onDelete,
@@ -68,7 +59,6 @@ export function FileBrowser({
         className="file-browser-list"
         tabIndex={0}
         onKeyDown={handleKeyDown}
-        onFocus={handleListFocus}
       >
         {entries.length === 0 && !loading ? (
           <div className="file-browser-empty">This folder is empty.</div>
@@ -82,7 +72,6 @@ export function FileBrowser({
               isHovered={hoveredIndex === index}
               currentPath={currentPath}
               loading={loading}
-              parentButtonRef={parentButtonRef}
               setHoveredIndex={setHoveredIndex}
               onNavigate={onNavigate}
               onSelect={onSelect}

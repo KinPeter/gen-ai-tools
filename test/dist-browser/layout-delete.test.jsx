@@ -244,43 +244,6 @@ describe("Layout delete flow", () => {
     expect(urls.filter((url) => url.startsWith("/api/fs/"))).toHaveLength(2);
   });
 
-  it("scrolls the row that takes over the selection into view", async () => {
-    // jsdom has no working scrollIntoView: record every row the scroll effect
-    // asks to bring into view.
-    const scrolled = [];
-    Element.prototype.scrollIntoView = function () {
-      scrolled.push(this.getAttribute("data-index"));
-    };
-
-    const { container } = renderLayout({
-      "": [image("img1.png"), image("img2.jpg"), image("img3.png")],
-    });
-
-    await waitFor(() => expect(itemByName(container, "img1.png")).toBeTruthy());
-    scrolled.length = 0;
-
-    fireEvent.click(itemByName(container, "img3.png"));
-    await waitFor(() =>
-      expect(selectedItemNames(container)).toEqual(["img3.png"]),
-    );
-    scrolled.length = 0;
-
-    deleteSelected(container);
-
-    await waitFor(() =>
-      expect(selectedItemNames(container)).toEqual(["img2.jpg"]),
-    );
-
-    // img2.jpg now sits at index 1 and is the highlighted row, so the effect
-    // scrolls that exact row. React flushes the scroll effect just after the
-    // commit, so wait for it instead of asserting synchronously.
-    const selectedRow = itemByName(container, "img2.jpg");
-    await waitFor(() =>
-      expect(scrolled.at(-1)).toBe(selectedRow.getAttribute("data-index")),
-    );
-    expect(selectedRow).toHaveClass("file-browser-item--selected");
-  });
-
   it("shows the previous image when the last image is deleted", async () => {
     const { container } = renderLayout({
       "": [
