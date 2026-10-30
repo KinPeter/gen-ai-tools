@@ -28,6 +28,13 @@
   border-radius: 4px;
 }
 
+.image-viewer-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .log-viewer-placeholder {
   padding: 12px;
   color: var(--text-secondary);

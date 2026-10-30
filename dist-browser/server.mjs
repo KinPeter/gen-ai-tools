@@ -2,10 +2,9 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { IMAGE_EXTENSIONS } from "./src/utils/is-image.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-
-const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 
 function normalizePathSegment(segment) {
   // Decode URL-encoded characters, then normalize cross-platform:

@@ -4,12 +4,14 @@ import { TopBar } from "../TopBar/TopBar";
 import { Column } from "../Column/Column";
 import { ResizeHandle } from "../ResizeHandle/ResizeHandle";
 import { FileBrowser } from "../FileBrowser/FileBrowser";
+import { isImageFile } from "../../utils/is-image";
 import "./Layout.css";
 
-const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
-
-function isImageFile(entry) {
-  return entry.type === "file" && IMAGE_EXTENSIONS.has(entry.ext);
+// Path of an entry relative to the served dist root, or null when the entry
+// is not an image (folder, "..", or no selection at all).
+function entryImagePath(currentPath, entry) {
+  if (!isImageFile(entry)) return null;
+  return currentPath ? `${currentPath}/${entry.name}` : entry.name;
 }
 
 function getLastFolder() {
@@ -29,6 +31,9 @@ export function Layout() {
   const [selectedImagePath, setSelectedImagePath] = useState(null);
 
   const abortRef = useRef(null);
+  // Guard against a second Delete keypress landing before the first trash
+  // call and its refresh have resolved.
+  const deletingRef = useRef(false);
 
   // Fetch directory listing
   const fetchDirectory = useCallback(
@@ -102,40 +107,44 @@ export function Layout() {
     setCurrentPath(path || "");
   }, []);
 
+  // Single place that keeps selectedIndex, selectedEntry and selectedImagePath
+  // in sync. selectedEntry is only ever an image, so the highlighted list row,
+  // the viewer and the log column always agree.
+  const applySelection = useCallback(
+    (entry, index) => {
+      setSelectedIndex(Math.max(0, index));
+      setSelectedEntry(isImageFile(entry) ? entry : null);
+      setSelectedImagePath(entryImagePath(currentPath, entry));
+    },
+    [currentPath],
+  );
+
   const handleSelect = useCallback(
     (entry) => {
-      if (!entry || entry.name === "..") {
-        setSelectedEntry(null);
-        setSelectedImagePath(null);
-        return;
-      }
+      if (!entry) return;
 
-      setSelectedEntry(entry);
-      setSelectedIndex(entries.findIndex((e) => e.name === entry.name));
+      const index = entries.findIndex((e) => e.name === entry.name);
+      if (index < 0) return;
 
-      // Auto-select images: load image in center column + log in right
-      if (isImageFile(entry)) {
-        const imagePath = currentPath
-          ? `${currentPath}/${entry.name}`
-          : entry.name;
-        setSelectedImagePath(imagePath);
-      }
+      applySelection(entry, index);
     },
-    [currentPath, entries],
+    [entries, applySelection],
   );
 
   const handleDelete = useCallback(
     async (entry) => {
       if (!entry || entry.name === "..") return;
+      // A delete is already in flight: ignore further keypresses until the
+      // listing has been refreshed, otherwise the stale list is trashed twice.
+      if (deletingRef.current) return;
 
-      // Save the entry that was selected before deletion
-      const wasLastItem = selectedIndex >= entries.length - 1;
+      const deletedIndex = entries.findIndex((e) => e.name === entry.name);
+      const itemPath = currentPath
+        ? `${currentPath}/${entry.name}`
+        : entry.name;
 
+      deletingRef.current = true;
       try {
-        const itemPath = currentPath
-          ? `${currentPath}/${entry.name}`
-          : entry.name;
-
         const response = await fetch("/api/trash", {
           method: "POST",
           headers: {
@@ -144,31 +153,61 @@ export function Layout() {
           body: JSON.stringify({ paths: [itemPath] }),
         });
 
+        const data = await response.json().catch(() => null);
+
         if (!response.ok) {
-          const data = await response.json().catch(() => null);
           setError(data?.error || `HTTP ${response.status}`);
           return;
         }
 
+        // /api/trash answers 200 even when individual paths fail, so the body
+        // must be inspected before treating the move as successful.
+        if (data && data.ok === false) {
+          setError(data.errors?.[0]?.error || "Failed to move item to trash");
+          return;
+        }
+
+        // The trashed entry no longer exists: never leave it in the viewer,
+        // even if the refresh below fails.
+        if (
+          selectedImagePath &&
+          selectedImagePath === entryImagePath(currentPath, entry)
+        ) {
+          setSelectedEntry(null);
+          setSelectedImagePath(null);
+        }
+
         // Refresh the listing on success
         const newEntries = await fetchDirectory(currentPath);
-
-        // Focus the next (now same-index) item
-        const newIndex = wasLastItem
-          ? Math.max(0, selectedIndex - 1)
-          : selectedIndex;
-        const newEntry = newEntries[newIndex];
-        setSelectedIndex(newIndex);
-        if (newEntry && newEntry.type !== "folder") {
-          setSelectedEntry(newEntry);
-        } else {
-          setSelectedEntry(null);
+        if (!Array.isArray(newEntries)) {
+          // fetchDirectory already reported the real error for this request.
+          return;
         }
+
+        // Focus the entry now sitting at the deleted index (the next one),
+        // or the last entry when the deleted one was last.
+        const targetIndex = deletedIndex < 0 ? selectedIndex : deletedIndex;
+        const newIndex = Math.max(
+          0,
+          Math.min(targetIndex, newEntries.length - 1),
+        );
+
+        // Folder, ".." or an empty listing -> no image: viewer shows empty state
+        applySelection(newEntries[newIndex] ?? null, newIndex);
       } catch {
         setError("Failed to move item to trash");
+      } finally {
+        deletingRef.current = false;
       }
     },
-    [currentPath, fetchDirectory, selectedIndex, entries],
+    [
+      applySelection,
+      currentPath,
+      entries,
+      fetchDirectory,
+      selectedIndex,
+      selectedImagePath,
+    ],
   );
 
   const handleRefresh = useCallback(() => {
@@ -204,13 +243,17 @@ export function Layout() {
           flexBasis={widths[1]}
           style={{ minWidth: colMinWidths[1] }}
         >
-          {selectedImagePath && (
+          {selectedImagePath ? (
             <div className="image-viewer-placeholder">
               <img
                 src={`/api/images/${encodeURIComponent(selectedImagePath)}`}
                 alt={selectedEntry?.name}
                 className="image-viewer-image"
               />
+            </div>
+          ) : (
+            <div className="image-viewer-empty" role="status">
+              No image selected
             </div>
           )}
         </Column>

@@ -50,6 +50,11 @@ npm run lint
 npm run format:check
 ```
 
+Coverage gate: `npm run test:coverage` applies the 90% per-file line threshold to
+`comfyui/`, `runpod/` and `logging/` only. `dist-browser/**` is unit-tested
+(`test/dist-browser/`, jsdom + `@testing-library/react`) but is deliberately not
+measured by that threshold.
+
 ## Config precedence
 
 ComfyUI server is resolved in `comfyui/jobs/config.mjs`: `runpod/.active-pod.json` `comfyUrl` (written by `start-pod`) wins over `COMFY_SERVER` from `.env`. One must be set. `COMFY_POLL_INTERVAL_MS` defaults to `5000`, must be integer >= 1.

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isImageFile } from "../../utils/is-image";
 import "./FileBrowser.css";
 
 const LAST_FOLDER_KEY = "dist-browser-last-folder";
-const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 
 const FolderIcon = () => (
   <svg
@@ -35,10 +35,6 @@ const ImageIcon = () => (
     <polyline points="21 15 16 10 5 21" />
   </svg>
 );
-
-function isImageFile(entry) {
-  return entry.type === "file" && IMAGE_EXTENSIONS.has(entry.ext);
-}
 
 export function FileBrowser({
   currentPath,
@@ -80,6 +76,12 @@ export function FileBrowser({
       }
     }
   }, [selectedIndex]);
+
+  // entries are replaced after a delete/refresh, so an index-based hover
+  // highlight would otherwise point at a different (never hovered) row.
+  useEffect(() => {
+    setHoveredIndex(null);
+  }, [entries]);
 
   // Persist last folder on navigation
   useEffect(() => {
@@ -318,8 +320,9 @@ export function FileBrowser({
                       ref={parentButtonRef}
                       type="button"
                       className="file-browser-icon-parent"
-                      tabIndex={0}
+                      tabIndex={-1}
                       aria-label="Go to parent folder"
+                      onClick={() => onNavigate?.(getParentPath(currentPath))}
                     >
                       ↑
                     </button>
