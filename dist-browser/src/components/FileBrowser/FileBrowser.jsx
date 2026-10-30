@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isImageFile } from "../../utils/is-image";
+import { parentFolderPath } from "../../utils/last-folder";
 import "./FileBrowser.css";
-
-const LAST_FOLDER_KEY = "dist-browser-last-folder";
 
 const FolderIcon = () => (
   <svg
@@ -59,12 +58,6 @@ export function FileBrowser({
   // Track last currentPath to detect navigation
   const lastPathRef = useRef(currentPath);
 
-  // Extract parent folder path (DRY helper)
-  function getParentPath(path) {
-    if (!path) return "";
-    return path.split("/").slice(0, -1).join("/");
-  }
-
   // Scroll selected item into view when it changes
   useEffect(() => {
     if (selectedIndex >= 0 && listRef.current) {
@@ -82,13 +75,6 @@ export function FileBrowser({
   useEffect(() => {
     setHoveredIndex(null);
   }, [entries]);
-
-  // Persist last folder on navigation
-  useEffect(() => {
-    if (currentPath) {
-      localStorage.setItem(LAST_FOLDER_KEY, currentPath);
-    }
-  }, [currentPath]);
 
   // Auto-focus list after navigating to a new folder
   useEffect(() => {
@@ -156,7 +142,7 @@ export function FileBrowser({
           if (!entry) return;
           // If parent (".."), navigate up
           if (entry.name === "..") {
-            onNavigate?.(getParentPath(currentPath));
+            onNavigate?.(parentFolderPath(currentPath));
             return;
           }
           // If folder, navigate into it
@@ -171,7 +157,7 @@ export function FileBrowser({
         }
         case "Backspace": {
           e.preventDefault();
-          onNavigate?.(getParentPath(currentPath));
+          onNavigate?.(parentFolderPath(currentPath));
           break;
         }
         case "Delete": {
@@ -233,7 +219,7 @@ export function FileBrowser({
       if (!entry) return;
 
       if (entry.name === "..") {
-        onNavigate?.(getParentPath(currentPath));
+        onNavigate?.(parentFolderPath(currentPath));
         return;
       }
 
@@ -322,7 +308,9 @@ export function FileBrowser({
                       className="file-browser-icon-parent"
                       tabIndex={-1}
                       aria-label="Go to parent folder"
-                      onClick={() => onNavigate?.(getParentPath(currentPath))}
+                      onClick={() =>
+                        onNavigate?.(parentFolderPath(currentPath))
+                      }
                     >
                       ↑
                     </button>

@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { FileBrowser } from "../../dist-browser/src/components/FileBrowser/FileBrowser.jsx";
+import { LAST_FOLDER_KEY } from "../../dist-browser/src/utils/last-folder.mjs";
 
 // --- Fixtures ---
 
@@ -56,7 +57,7 @@ beforeAll(() => {
   // Mock localStorage (jsdom provides it, but ensure it works)
   Object.defineProperty(window, "localStorage", {
     value: {
-      getItem: vi.fn((key) => (key === "dist-browser-last-folder" ? "" : null)),
+      getItem: vi.fn((key) => (key === LAST_FOLDER_KEY ? "" : null)),
       setItem: vi.fn(),
       removeItem: vi.fn(),
       clear: vi.fn(),
@@ -214,7 +215,7 @@ describe("FileBrowser", () => {
 
       fireEvent.keyDown(list, { key: "Enter" });
 
-      // getParentPath("") returns ""
+      // parentFolderPath("") returns ""
       expect(onNavigate).toHaveBeenCalledWith("");
     });
 
@@ -372,6 +373,20 @@ describe("FileBrowser", () => {
       fireEvent.keyDown(list, { key: "Enter" });
 
       expect(onNavigate).toHaveBeenCalledWith("some");
+    });
+  });
+
+  describe("last folder persistence", () => {
+    it("does not touch storage itself: Layout is the only writer", () => {
+      // Layout owns currentPath and persists it. If FileBrowser wrote too,
+      // every navigation would be stored twice.
+      renderFileBrowser({
+        currentPath: "subfolder",
+        entries: fixtures.subfolderEntries,
+      });
+
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+      expect(localStorage.removeItem).not.toHaveBeenCalled();
     });
   });
 

@@ -5,6 +5,11 @@ import { Column } from "../Column/Column";
 import { ResizeHandle } from "../ResizeHandle/ResizeHandle";
 import { FileBrowser } from "../FileBrowser/FileBrowser";
 import { isImageFile } from "../../utils/is-image";
+import {
+  normalizeFolderPath,
+  readLastFolder,
+  writeLastFolder,
+} from "../../utils/last-folder";
 import "./Layout.css";
 
 // Path of an entry relative to the served dist root, or null when the entry
@@ -14,15 +19,10 @@ function entryImagePath(currentPath, entry) {
   return currentPath ? `${currentPath}/${entry.name}` : entry.name;
 }
 
-function getLastFolder() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("dist-browser-last-folder") || "";
-}
-
 export function Layout() {
   const { widths, startDrag } = useColumnResize(3);
 
-  const [currentPath, setCurrentPath] = useState(() => getLastFolder());
+  const [currentPath, setCurrentPath] = useState(() => readLastFolder());
   const [entries, setEntries] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState(null);
@@ -34,6 +34,13 @@ export function Layout() {
   // Guard against a second Delete keypress landing before the first trash
   // call and its refresh have resolved.
   const deletingRef = useRef(false);
+
+  // Layout owns currentPath, so it is the only writer of the "last visited
+  // folder" entry: the dist root removes the entry, any other path stores the
+  // normalized path. FileBrowser never touches storage.
+  useEffect(() => {
+    writeLastFolder(currentPath);
+  }, [currentPath]);
 
   // Fetch directory listing
   const fetchDirectory = useCallback(
@@ -57,7 +64,9 @@ export function Layout() {
 
         if (!response.ok) {
           const data = await response.json().catch(() => null);
-          throw new Error(data?.error || `HTTP ${response.status}`);
+          const error = new Error(data?.error || `HTTP ${response.status}`);
+          error.status = response.status;
+          throw error;
         }
 
         const data = await response.json();
@@ -84,8 +93,13 @@ export function Layout() {
       } catch (err) {
         if (err.name !== "AbortError") {
           setError(err.message || "Failed to load directory");
-          // Fall back to root when the restored folder no longer exists (404)
-          if (err.message?.includes("404")) {
+          // The folder we asked for cannot be used: it is gone (404) or the
+          // path was rejected by the server (403). Fall back to the dist root
+          // and clear the entry here so a reload does not repeat the failure.
+          // Transient errors (5xx, network) keep the entry so the user can
+          // retry the same folder.
+          if (path && (err.status === 404 || err.status === 403)) {
+            writeLastFolder("");
             setCurrentPath("");
           }
         }
@@ -104,7 +118,7 @@ export function Layout() {
   }, [currentPath, fetchDirectory]);
 
   const handleNavigate = useCallback((path) => {
-    setCurrentPath(path || "");
+    setCurrentPath(normalizeFolderPath(path));
   }, []);
 
   // Single place that keeps selectedIndex, selectedEntry and selectedImagePath
