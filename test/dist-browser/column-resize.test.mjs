@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   enforceMinWidth,
   parseStoredWidth,
-} from "../../dist-browser/src/hooks/resize-utils.mjs";
+} from "../../dist-browser/src/utils/resize-utils.mjs";
 
 describe("enforceMinWidth", () => {
   it("returns current when above minimum", () => {

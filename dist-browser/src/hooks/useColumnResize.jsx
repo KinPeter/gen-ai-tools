@@ -3,7 +3,7 @@ import {
   MIN_WIDTHS,
   enforceMinWidth,
   parseStoredWidth,
-} from "./resize-utils.mjs";
+} from "../utils/resize-utils.mjs";
 
 const STORAGE_KEYS = ["dist-browser-col-1", "dist-browser-col-2"];
 const DEFAULT_WIDTHS = [300, 500, 300]; // px initial widths
