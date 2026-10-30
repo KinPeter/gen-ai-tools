@@ -23,23 +23,25 @@ Node 24, ESM (`"type": "module"`, top-level await). Vitest (`vitest.config.mjs`,
 ```sh
 cp .env.example .env  # then fill in values
 npm install
-source ./session.sh   # optional shortcuts: `comfy-batch <name>`, `start-pod`, `stop-pod`, `runpod-comfy`, `comfy`
 ```
 
 `dotenv` values are literal (no variable expansion). `package-lock.json` is tracked — commit updates alongside dependency changes.
 
-## Commands
+## Repo layout
 
-| Command                                  | Notes                                                                                                                                                                                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run comfy-batch -- <input-name>`    | Reads `comfyui/inputs/<input-name>.yaml` (bare name, no path/extension)                                                                                                                                                  |
-| `npm run start-pod` / `npm run stop-pod` | RunPod GPU pod up/down; needs `RUNPOD_API_KEY`                                                                                                                                                                           |
-| `npm run convert-all`                    | Re-convert every PNG under `output/` to `dist/`                                                                                                                                                                          |
-| `npm run find-log-from-files`            | Look up a run-log entry by image filename in `output/logs/`                                                                                                                                                              |
-| `npm run deploy-find-lambda`             | Zip + publish `logging/log-find-lambda.mjs` to AWS Lambda                                                                                                                                                                |
-| `npm run build-find-ui`                  | Inject `LOG_FIND_LAMBDA_URL` into browser UI → `logging/dist/`                                                                                                                                                           |
-| `npm run deploy-find-ui`                 | Build (`build-find-ui`) then upload `logging/dist/index.html` via plain FTP to `LOG_FIND_UI_FTP_FOLDER`, overwriting `index.html`; needs `FTP_HOST` (bare hostname) / `FTP_USER` / `FTP_PASS` / `LOG_FIND_UI_FTP_FOLDER` |
-| `npm run test` / `npm run test:coverage` | Vitest run / run with per-file 90% line coverage (`vitest.config.mjs`)                                                                                                                                                   |
+| Directory         | Purpose |
+| ----------------- | ------- |
+| `comfyui/`        | ComfyUI inference — workflow building, job execution, output handling, log writing. |
+| `runpod/`         | RunPod GPU pod lifecycle — create, wait, stop, terminate. |
+| `logging/`        | DynamoDB logging helpers, Lambda deployment, browser UI build, FTP upload. |
+| `dist-browser/`   | Vite + React browser UI for serving `dist/` outputs. |
+| `test/`           | Vitest unit and E2E golden-file tests (mirrors source structure). |
+| `comfyui/workflows/` | Base workflow JSON templates (used by the workflow builder). |
+| `comfyui/inputs/` | Input YAML definitions (prompt sets, LoRA chains, seeds). |
+| `dist/`           | Generated JPG outputs (mirrors `output/` subfolders). |
+| `output/`         | Raw PNG outputs + run logs. All gitignored. |
+
+Each module directory has its own `AGENTS.md` with detailed conventions. Scripts are defined in `package.json` — use `npm run <script>` to invoke them.
 
 ## Required QA
 
@@ -55,83 +57,54 @@ Coverage gate: `npm run test:coverage` applies the 90% per-file line threshold t
 (`test/dist-browser/`, jsdom + `@testing-library/react`) but is deliberately not
 measured by that threshold.
 
-## Config precedence
+## Code quality rules
 
-ComfyUI server is resolved in `comfyui/jobs/config.mjs`: `runpod/.active-pod.json` `comfyUrl` (written by `start-pod`) wins over `COMFY_SERVER` from `.env`. One must be set. `COMFY_POLL_INTERVAL_MS` defaults to `5000`, must be integer >= 1.
+Every change and every review must uphold these principles. They apply to all
+code in the repo — Node.js modules and React components alike.
 
-## Pipeline (`comfyui/batch.mjs` is thin orchestrator only)
+### Single responsibility & separation of concerns
 
-`requireConfig -> requireInputName -> requireWorkflows ->` per job `queuePrompt -> waitForCompletion -> saveOutputs -> addToLog -> convertOutputs`. Failure in any job logs and `process.exit(1)`; log file `output/logs/<input>_<run-ts>.json` is created empty up front and appended live (subfolder inputs keep their relative subfolder, e.g. `output/logs/archive/<input>_<run-ts>.json`).
+- **Each file has one job.** If a file contains logic for two different
+  responsibilities, extract the second into its own file.
+- **Each function does one thing.** A function that clearly performs multiple
+  distinct steps (e.g. read + transform + write) must be split into separate
+  functions.
+- **Pure logic is separated from I/O.** File reads, network calls, and console
+  output live at the module boundary. Transform and business logic live in
+  pure functions (no side effects). This makes them testable and reusable.
+- **Constants and config live together.** Extract magic values and repeated
+  strings into named constants at or near the top of the file. Never scatter
+  literal values throughout logic.
 
-- `comfyui/workflow-builder/workflow.mjs`: YAML parsing + base-workflow overrides. Images fetched via `GET /view` only — never assumes server disk access.
-- `comfyui/jobs/comfy.mjs`: `POST /prompt`, poll `GET /history/{id}` until entry appears with `status_str === "success"`.
-- `comfyui/jobs/save.mjs` + `comfyui/utils/paths.mjs`: unsafe `output-folder` (path escape) is ignored with a warning, falls back to `output/`.
-- `comfyui/jobs/convert.mjs`: PNG → JPG quality 90 into `dist/` (mirrors `output/` subfolders).
+### Manageable size
 
-## Input YAML (`comfyui/inputs/`, gitignored except `input.example.yaml`)
+- **Files:** aim for ≤ 100 lines; ≤ 150 is acceptable for thin orchestrators
+  that compose smaller functions. Anything over 200 lines **must** be split.
+- **Functions:** aim for ≤ 25 lines; ≤ 35 is acceptable for naturally long
+  sequences (e.g. API request handling). Functions over 40 lines are a clear
+  signal to extract.
+- **Components:** a React component that handles more than one visual concern
+  (e.g. rendering a list AND editing an item) should be split into a list
+  component and an edit/detail component.
 
-- Top-level list of blocks; every block **must** have a `prompts` list. Each entry merges over its parent — per-prompt `tries`/`seed`/`prompt`/`negative-prompt`/`loras`/`clip-skip` win.
-- `base-workflow: <name>` loads `comfyui/workflows/<name>.json` (`.json` suffix optional). `steps`/`cfg`/`size`/`filename-prefix` applied only when set.
-- `prompt` must be a list of strings, appended in order to the base positive prompt (`PositiveCLIP_Base` or sampler-linked `CLIPTextEncode`). `tries` must be int >= 1, default 1.
-- `loras` (list of `{name, strength}`, minimum one entry) builds the `Lora_1..Lora_N` `LoraLoader` chain; omitted → no LoRAs. `clip-skip` (any number) overrides `stop_at_clip_layer`.
-- Seed rule: fixed seed kept only when `tries` is unset/`1`; `tries > 1` always randomizes. Otherwise seed is `Math.floor(Math.random() * MAX_SAFE_INTEGER)`.
-- Overrides locate nodes by `class_type` (`KSampler`, `EmptyLatentImage`, `SaveImage`); new base JSONs must keep those node types or overrides silently no-op.
-- Tests never use gitignored files: base-workflow fixtures live in `test/fixtures/workflows/` and are loaded via the `workflowsDir` parameter of `loadWorkflows`.
+### DRY — extract early
 
-## Outputs (all gitignored)
+- **Extract named functions even for one-time use.** If a block of code could
+  be described with a verb phrase (e.g. "validate pod state"), it belongs in a
+  named function. Anonymous inner functions for complex logic are a smell.
+- **Extract repeated patterns, not just repeated code.** If two functions
+  perform the same logical step with different inputs, abstract the pattern
+  into a shared helper.
+- **Prefer extraction over inlining.** A named function with a clear name is
+  more readable than an inlined block, even if used only once.
 
-- `output/<output-folder>/<prefix>_YYYYMMDDHHmmss.png` (`_<n>` suffix for multi-image jobs)
-- `dist/<output-folder>/<prefix>_YYYYMMDDHHmmss.jpg` (mirrors `output/` subfolders)
-- `output/logs/<input>_<run-ts>.json` (subfolder inputs keep their relative subfolder, e.g. `output/logs/archive/<input>_<run-ts>.json`)
+### Review checklist
 
-## RunPod (`runpod/`)
+Reviewers must verify:
 
-Lifecycle is strictly linear, never restart/reuse: create → wait `RUNNING` → work → `stop-pod` (stop, wait `EXITED`, terminate). `start-pod` refuses to run while `.active-pod.json` exists; `stop-pod` is safe to re-run (missing pod just clears the pointer). Pointer file is written immediately after create and deleted only after confirmed terminate — never delete it manually while a pod may be billable. Pod SSH details print at the end of `start-pod`;
-
-## Logging (`logging/`, see `logging/README.md`)
-
-- `logging/log-find-lambda.mjs`: AWS Lambda handler — `GET ?filename=<image-file>` looks up the run-log entry in DynamoDB (key: basename without extension). Needs `TABLE_NAME` (or `AWS_LOGS_TABLE_NAME`) on the Lambda.
-- `logging/upload-log.mjs`: exports `uploadLog(logEntries)` — uploads each entry to DynamoDB (key: basename without extension, `data`: JSON-stringified entry). Called by `addToLog` after every `writeLog`; failures only `console.error`. Needs `TABLE_NAME` (or `AWS_LOGS_TABLE_NAME`).
-- `logging/deploy-find-lambda.mjs` (`npm run deploy-find-lambda`): zips + publishes the lambda via `UpdateFunctionCodeCommand` (needs the `zip` binary; env: `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_LOGS_FIND_LAMBDA_NAME`). Handler stays `<basename>.handler`.
-- `comfyui/jobs/find-log-from-files.mjs` (`npm run find-log-from-files`): local lookup of a run-log entry by image filename under `output/logs/`.
-- `logging/log-find-ui.html`: browser source UI (single file, `__LOG_FIND_LAMBDA_URL__` placeholder only — never the real URL).
-- `logging/build-find-ui.mjs` (`npm run build-find-ui`): injects `LOG_FIND_LAMBDA_URL` from `.env` into `logging/dist/index.html` (gitignored).
-- `logging/deploy-find-ui.mjs` (`npm run deploy-find-ui`): builds then uploads `logging/dist/index.html` via plain FTP (insecure, `basic-ftp` `secure: false` — provider cert is for `*.tarhely.com`, not the FTP hostname, so FTPS fails cert verification) to `LOG_FIND_UI_FTP_FOLDER`, overwriting `index.html`.
-- `logging/temp-scripts/` holds one-off migration helpers (own README); excluded from vitest coverage. Vitest covers `logging/**/*.mjs` otherwise (`vitest.config.mjs`, per-file 90% line threshold).
-
-## ComfyUI workflow building tests
-
-### E2E golden-file tests (`test/comfyui/workflows/`)
-
-E2E golden-file tests cover the full YAML → workflow JSON pipeline.
-
-- Input YAMLs: `test/comfyui/workflows/inputs/` (30 test cases).
-- Fixture base workflows: `test/comfyui/workflows/base-workflows/`.
-- Golden output files: `test/comfyui/workflows/golden/` (auto-matched by basename).
-- Test file: `test/comfyui/workflows/workflow-e2e.test.mjs`.
-- Golden regeneration: `node test/comfyui/workflows/generate-goldens.mjs`.
-
-These tests are **critical regression guards**. Whenever `comfyui/workflow-builder/workflow.mjs` changes (new overrides, node-type logic, seed/tries rules, brace expansion, LoRA chain wiring, clip-skip handling, etc.):
-
-1. **Regenerate golden files**: `node test/comfyui/workflows/generate-goldens.mjs`
-2. **Run the test suite**: `npm test` (must pass)
-3. **Review golden diffs**: If behavior changed intentionally, commit the new golden files. If not, fix the code.
-4. **Add new input fixtures** for any new or altered branches of logic.
-
-Each golden file corresponds to one YAML input; the test compares `loadWorkflows()` output against the golden JSON, verifying every node, override, and seed.
-
-### Unit tests (`test/comfyui/workflow-builder/`)
-
-Unit tests cover individual modules in `comfyui/workflow-builder/`. The directory mirrors the source code structure:
-
-| Source file                               | Test file                                           | Coverage                                                                                     |
-| ----------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `comfyui/workflow-builder/workflow.mjs`   | `test/comfyui/workflow-builder/workflow.test.mjs`   | Full workflow expansion, brace groups, LoRA chain, clip-skip, validation errors, empty input |
-| `comfyui/workflow-builder/clip.mjs`       | `test/comfyui/workflow-builder/clip.test.mjs`       | findClipSourceLabel, applyClipSkipOverride, rewireClipsTo, createClipSkipNode                |
-| `comfyui/workflow-builder/utils.mjs`      | `test/comfyui/workflow-builder/utils.test.mjs`      | findNodeByClass, findNegativeClip                                                            |
-| `comfyui/workflow-builder/loras.mjs`      | `test/comfyui/workflow-builder/loras.test.mjs`      | Covered by integration (workflow.test.mjs + e2e golden tests)                                |
-| `comfyui/workflow-builder/overrides.mjs`  | `test/comfyui/workflow-builder/overrides.test.mjs`  | Covered by integration (workflow.test.mjs + e2e golden tests)                                |
-| `comfyui/workflow-builder/prompts.mjs`    | `test/comfyui/workflow-builder/prompts.test.mjs`    | Covered by integration (workflow.test.mjs + e2e golden tests)                                |
-| `comfyui/workflow-builder/validation.mjs` | `test/comfyui/workflow-builder/validation.test.mjs` | Covered by integration (workflow.test.mjs — validation errors)                               |
-
-Modules in the last four rows have no direct unit tests because their logic is fully exercised through the `loadWorkflows()` integration in `workflow.test.mjs` and the golden-file E2E tests.
+- No function exceeds ~35 lines (with documented justification if it does).
+- No file exceeds ~150 lines (with documented justification if it does).
+- I/O (file, network, console) is kept at the edges; pure logic is in
+  testable functions.
+- Magic values and repeated strings are extracted into named constants.
+- Any new complex logic block has been given a descriptive function name.
