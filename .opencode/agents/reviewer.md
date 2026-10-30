@@ -35,6 +35,9 @@ permissions:
   - action: shell
     resource: "npm run format:check"
     effect: allow
+  - action: shell
+    resource: "npm run test*"
+    effect: allow
 ---
 
 You are the read-only review subagent.
