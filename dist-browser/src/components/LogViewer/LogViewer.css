@@ -1,0 +1,10 @@
+.log-viewer-placeholder {
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.log-viewer-note {
+  font-style: italic;
+  font-size: 12px;
+}

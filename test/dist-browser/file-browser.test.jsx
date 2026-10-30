@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { FileBrowser } from "../../dist-browser/src/components/FileBrowser/FileBrowser.jsx";
 import { LAST_FOLDER_KEY } from "../../dist-browser/src/utils/last-folder.mjs";
 
@@ -341,6 +341,126 @@ describe("FileBrowser", () => {
       const shiftedRow = container.querySelector('[data-index="2"]');
       expect(shiftedRow.getAttribute("aria-label")).toBe("img2.jpg");
       expect(shiftedRow).not.toHaveClass("file-browser-item--hovered");
+    });
+  });
+
+  describe("scroll selected entry into view", () => {
+    // jsdom has no working scrollIntoView, so stub it on the prototype and
+    // record which row (by data-index) the effect asked to scroll.
+    function stubScrollIntoView() {
+      const scrolled = [];
+      Element.prototype.scrollIntoView = function () {
+        scrolled.push(this.getAttribute("data-index"));
+      };
+      return scrolled;
+    }
+
+    it("scrolls the row highlighted by a selection change into view", async () => {
+      const scrolled = stubScrollIntoView();
+      const { rerenderFileBrowser } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 1,
+      });
+
+      rerenderFileBrowser({ selectedIndex: 3 });
+
+      // React flushes passive effects just after the commit, so poll for it.
+      await waitFor(() => expect(scrolled).toEqual(["1", "3"]));
+    });
+
+    it("does not scroll when nothing is selected", () => {
+      const scrolled = stubScrollIntoView();
+      renderFileBrowser({ entries: fixtures.rootEntries, selectedIndex: -1 });
+
+      expect(scrolled).toEqual([]);
+    });
+
+    it("does not scroll for an index the listing no longer has", () => {
+      const scrolled = stubScrollIntoView();
+      renderFileBrowser({ entries: [], selectedIndex: 2 });
+
+      expect(scrolled).toEqual([]);
+    });
+
+    it("keeps the effect tied to the selection, not the listing", () => {
+      const scrolled = stubScrollIntoView();
+      const { rerenderFileBrowser } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 2,
+      });
+
+      scrolled.length = 0;
+      rerenderFileBrowser({ entries: fixtures.subfolderEntries });
+
+      expect(scrolled).toEqual([]);
+    });
+  });
+
+  describe("keyboard navigation after a re-render", () => {
+    // The handlers must always see the current entries, selection and loading
+    // state: a stale closure would navigate against the previous listing.
+    it("ArrowDown uses the selection from the latest render", () => {
+      const onSelect = vi.fn();
+      const { container, rerenderFileBrowser } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 0,
+        onSelect,
+      });
+      const list = container.querySelector(".file-browser-list");
+
+      rerenderFileBrowser({ selectedIndex: 2 });
+      fireEvent.keyDown(list, { key: "ArrowDown" });
+
+      // entries[2] is "img1.png", so the next row is "img2.jpg"
+      expect(onSelect).toHaveBeenCalledWith(fixtures.rootEntries[3]);
+    });
+
+    it("ArrowDown uses the entries from the latest render", () => {
+      const onSelect = vi.fn();
+      const { container, rerenderFileBrowser } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 0,
+        onSelect,
+      });
+      const list = container.querySelector(".file-browser-list");
+
+      rerenderFileBrowser({ entries: fixtures.subfolderEntries });
+      fireEvent.keyDown(list, { key: "ArrowDown" });
+
+      expect(onSelect).toHaveBeenCalledWith(fixtures.subfolderEntries[1]);
+    });
+
+    it("keys are ignored once the listing starts loading again", () => {
+      const onSelect = vi.fn();
+      const { container, rerenderFileBrowser } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 0,
+        onSelect,
+      });
+      const list = container.querySelector(".file-browser-list");
+
+      rerenderFileBrowser({ loading: true });
+      fireEvent.keyDown(list, { key: "ArrowDown" });
+      expect(onSelect).not.toHaveBeenCalled();
+
+      rerenderFileBrowser({ loading: false });
+      fireEvent.keyDown(list, { key: "ArrowDown" });
+      expect(onSelect).toHaveBeenCalledWith(fixtures.rootEntries[1]);
+    });
+
+    it("Delete uses the selection from the latest render", () => {
+      const onDelete = vi.fn();
+      const { container, rerenderFileBrowser } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 0,
+        onDelete,
+      });
+      const list = container.querySelector(".file-browser-list");
+
+      rerenderFileBrowser({ selectedIndex: 3 });
+      fireEvent.keyDown(list, { key: "Delete" });
+
+      expect(onDelete).toHaveBeenCalledWith(fixtures.rootEntries[3]);
     });
   });
 

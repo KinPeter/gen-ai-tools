@@ -1,0 +1,74 @@
+/* A single row of the file browser list (see FileBrowserEntry.jsx) */
+
+.file-browser-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+  transition: background-color 0.1s ease;
+  font-size: 13px;
+  outline: none;
+}
+
+.file-browser-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.file-browser-item--hovered {
+  background: var(--bg-tertiary);
+}
+
+.file-browser-item--selected {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+.file-browser-item--selected:hover {
+  background: var(--selection-bg);
+}
+
+.file-browser-icon {
+  flex-shrink: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.file-browser-icon svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.file-browser-icon-parent {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  line-height: 1;
+}
+
+.file-browser-icon-parent:focus-visible {
+  color: var(--accent-color);
+}
+
+.file-browser-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-browser-name--parent {
+  font-style: italic;
+  color: var(--text-secondary);
+}
