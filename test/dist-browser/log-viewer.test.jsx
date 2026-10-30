@@ -200,6 +200,18 @@ describe("LogViewer", () => {
       expect(container.querySelector(".log-viewer-content")).toBeTruthy();
     });
 
+    it("renders colorized spans inside the <code> element", () => {
+      const imageEntry = {
+        name: "bp-cp_20261005233501.jpg",
+        type: "file",
+        ext: "jpg",
+      };
+      const { container } = renderLogViewer({ entry: imageEntry });
+      const code = container.querySelector("pre code");
+      const spans = code.querySelectorAll(".log-viewer-token-key");
+      expect(spans.length).toBeGreaterThan(0);
+    });
+
     it("renders with monospace font via CSS class", () => {
       const imageEntry = {
         name: "bp-cp_20261005233501.jpg",

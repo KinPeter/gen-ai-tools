@@ -1,5 +1,6 @@
 import "./LogViewer.css";
 import { matchLogEntry } from "../../utils/log-entry.mjs";
+import { colorizeJsonText } from "../../utils/colorize-json-text.mjs";
 
 /**
  * Log Viewer column: displays a generation log entry as a theme-aware code
@@ -54,7 +55,7 @@ export function LogViewer({ entry, logEntries, logsLoading }) {
   return (
     <div className="log-viewer-content">
       <pre className="log-viewer-code">
-        <code>{logText}</code>
+        <code>{colorizeJsonText(logText)}</code>
       </pre>
     </div>
   );

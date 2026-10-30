@@ -27,6 +27,14 @@
   /* Layout */
   --topbar-height: 48px;
   --handle-width: 4px;
+
+  /* JSON token colors — light */
+  --json-key-color: #1a1a1a;
+  --json-string-color: #0d6efd;
+  --json-number-color: #d63384;
+  --json-boolean-color: #6f42c1;
+  --json-null-color: #fd7e14;
+  --json-structural-color: #888888;
 }
 
 [data-theme="dark"] {
@@ -51,6 +59,14 @@
   --scrollbar-thumb-active: #888;
 
   --accent-color: #60a5fa;
+
+  /* JSON token colors — dark */
+  --json-key-color: #e0e0e0;
+  --json-string-color: #79b8ff;
+  --json-number-color: #f778ba;
+  --json-boolean-color: #b388ff;
+  --json-null-color: #ffab40;
+  --json-structural-color: #666666;
 }
 
 /* ── Reset ── */
