@@ -19,6 +19,7 @@ Generate images via ComfyUI — workflow building, job execution, output handlin
 `loadWorkflows(inputName)` reads an input YAML from `comfyui/inputs/`, merges it over a base workflow from `comfyui/workflows/`, and returns a queueable workflow JSON.
 
 **Input YAML conventions:**
+
 - Top-level list of blocks; every block **must** have a `prompts` list.
 - Per-prompt overrides (`tries`, `seed`, `prompt`, `negative-prompt`, `loras`, `clip-skip`) take precedence over parent.
 - `base-workflow: <name>` loads `comfyui/workflows/<name>.json` (`.json` suffix optional). Applies `steps`/`cfg`/`size`/`filename-prefix` when set.

@@ -29,17 +29,17 @@ npm install
 
 ## Repo layout
 
-| Directory         | Purpose |
-| ----------------- | ------- |
-| `comfyui/`        | ComfyUI inference — workflow building, job execution, output handling, log writing. |
-| `runpod/`         | RunPod GPU pod lifecycle — create, wait, stop, terminate. |
-| `logging/`        | DynamoDB logging helpers, Lambda deployment, browser UI build, FTP upload. |
-| `dist-browser/`   | Vite + React browser UI for serving `dist/` outputs. |
-| `test/`           | Vitest unit and E2E golden-file tests (mirrors source structure). |
-| `comfyui/workflows/` | Base workflow JSON templates (used by the workflow builder). |
-| `comfyui/inputs/` | Input YAML definitions (prompt sets, LoRA chains, seeds). |
-| `dist/`           | Generated JPG outputs (mirrors `output/` subfolders). |
-| `output/`         | Raw PNG outputs + run logs. All gitignored. |
+| Directory            | Purpose                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| `comfyui/`           | ComfyUI inference — workflow building, job execution, output handling, log writing. |
+| `runpod/`            | RunPod GPU pod lifecycle — create, wait, stop, terminate.                           |
+| `logging/`           | DynamoDB logging helpers, Lambda deployment, browser UI build, FTP upload.          |
+| `dist-browser/`      | Vite + React browser UI for serving `dist/` outputs.                                |
+| `test/`              | Vitest unit and E2E golden-file tests (mirrors source structure).                   |
+| `comfyui/workflows/` | Base workflow JSON templates (used by the workflow builder).                        |
+| `comfyui/inputs/`    | Input YAML definitions (prompt sets, LoRA chains, seeds).                           |
+| `dist/`              | Generated JPG outputs (mirrors `output/` subfolders).                               |
+| `output/`            | Raw PNG outputs + run logs. All gitignored.                                         |
 
 Each module directory has its own `AGENTS.md` with detailed conventions. Scripts are defined in `package.json` — use `npm run <script>` to invoke them.
 
