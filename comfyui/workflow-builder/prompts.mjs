@@ -2,6 +2,8 @@ import {
   validatePromptArray,
   validateClipSkip,
   validateLoras,
+  validateSeed,
+  validateTries,
 } from "./validation.mjs";
 
 export function expandPrompts(items) {
@@ -15,10 +17,12 @@ export function expandPrompts(items) {
     const { prompts, ...parent } = item;
     for (const entry of prompts) {
       const effective = { ...parent, ...(entry ?? {}) };
-      validatePromptArray(effective, "prompt");
-      validatePromptArray(effective, "negative-prompt");
-      validateClipSkip(effective);
-      validateLoras(effective);
+      validatePromptArray(effective, "prompt", true);
+      validatePromptArray(effective, "negative-prompt", true);
+      validateClipSkip(effective, true);
+      validateLoras(effective, true);
+      validateTries(effective.tries, true);
+      validateSeed(effective.seed, true);
       for (const variant of expandBraceVariants(effective)) {
         expanded.push(variant);
       }

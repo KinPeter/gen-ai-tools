@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 import { findNode, findPositiveClip, findNegativeClip } from "./utils.mjs";
-import { validateInput } from "./validation.mjs";
+import { validateJobData } from "./validation.mjs";
 import { expandPrompts } from "./prompts.mjs";
 import { applyOverrides } from "./overrides.mjs";
 
@@ -42,7 +42,7 @@ export async function loadWorkflows(
     );
   }
 
-  validateInput(data);
+  validateJobData(data);
 
   const items = expandPrompts(
     data == null ? [] : Array.isArray(data) ? data : [data],
