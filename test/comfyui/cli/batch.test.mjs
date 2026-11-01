@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   addToLog: vi.fn(),
   writeLog: vi.fn(),
   convertOutputs: vi.fn(),
+  freeMemory: vi.fn(),
 }));
 
 vi.mock("../../../comfyui/jobs/config.mjs", () => ({
@@ -27,6 +28,7 @@ vi.mock("../../../comfyui/workflow-builder/workflow.mjs", () => ({
 vi.mock("../../../comfyui/jobs/comfy.mjs", () => ({
   queuePrompt: mocks.queuePrompt,
   waitForCompletion: mocks.waitForCompletion,
+  freeMemory: mocks.freeMemory,
 }));
 vi.mock("../../../comfyui/jobs/save.mjs", () => ({
   saveOutputs: mocks.saveOutputs,
@@ -53,15 +55,22 @@ describe("batch orchestrator", () => {
     ]);
     mocks.addToLog.mockResolvedValue([]);
     mocks.convertOutputs.mockResolvedValue(undefined);
+    mocks.freeMemory.mockResolvedValue(undefined);
 
     await expect(main()).resolves.toBe(true);
     expect(mocks.writeLog).toHaveBeenCalled();
     expect(mocks.addToLog).toHaveBeenCalled();
     expect(mocks.convertOutputs).toHaveBeenCalled();
+    expect(mocks.freeMemory).toHaveBeenCalledWith("http://comfy.test", {
+      freeMemory: true,
+      unloadModels: true,
+    });
   });
 
   it("returns false when a job fails", async () => {
     mocks.queuePrompt.mockRejectedValueOnce(new Error("queue failed"));
+    mocks.freeMemory.mockResolvedValue(undefined);
     await expect(main()).resolves.toBe(false);
+    expect(mocks.freeMemory).toHaveBeenCalled();
   });
 });

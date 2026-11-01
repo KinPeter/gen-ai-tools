@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { requireWorkflows } from "./workflow-builder/workflow.mjs";
 import { requireConfig } from "./jobs/config.mjs";
 import { requireInputName } from "./utils/args.mjs";
-import { queuePrompt, waitForCompletion } from "./jobs/comfy.mjs";
+import { queuePrompt, waitForCompletion, freeMemory } from "./jobs/comfy.mjs";
 import { saveOutputs } from "./jobs/save.mjs";
 import { convertOutputs } from "./jobs/convert.mjs";
 import { addToLog, writeLog } from "./jobs/log.mjs";
@@ -49,14 +49,24 @@ export async function main() {
   await writeLog(logPath, logEntries);
 
   const jobs = await requireWorkflows(name);
+  let allOk = true;
   for (let i = 0; i < jobs.length; i++) {
     console.log(`[${i + 1}/${jobs.length}] Running workflow...`);
     // Debugging: uncomment this line to see the full workflow
     // console.log(JSON.stringify(jobs[i].workflow, null, 2));
     const ok = await runJob(jobs[i], { config, logPath, logEntries });
-    if (!ok) return false;
+    if (!ok) allOk = false;
   }
-  return true;
+
+  try {
+    console.log("Freeing GPU memory...");
+    await freeMemory(config.server, { freeMemory: true, unloadModels: true });
+    console.log("Memory freed.");
+  } catch (e) {
+    console.warn("GPU memory free failed (non-fatal)", e);
+  }
+
+  return allOk;
 }
 
 if (

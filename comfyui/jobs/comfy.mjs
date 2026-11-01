@@ -52,6 +52,24 @@ export async function waitForCompletion(
   }
 }
 
+export async function freeMemory(
+  server,
+  { freeMemory: free = true, unloadModels: unload = true } = {},
+) {
+  const res = await fetch(`${server}/api/free`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ free_memory: free, unload_models: unload }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    throw withDetails("Failed to free GPU memory:", data);
+  }
+
+  return "ok";
+}
+
 export async function fetchImage(server, { filename, subfolder, type }) {
   const qs = new URLSearchParams({
     filename,
