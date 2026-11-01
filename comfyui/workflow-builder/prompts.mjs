@@ -17,12 +17,12 @@ export function expandPrompts(items) {
     const { prompts, ...parent } = item;
     for (const entry of prompts) {
       const effective = { ...parent, ...(entry ?? {}) };
-      validatePromptArray(effective, "prompt", true);
-      validatePromptArray(effective, "negative-prompt", true);
-      validateClipSkip(effective, true);
-      validateLoras(effective, true);
-      validateTries(effective.tries, true);
-      validateSeed(effective.seed, true);
+      validatePromptArray(effective, "prompt");
+      validatePromptArray(effective, "negative-prompt");
+      validateClipSkip(effective);
+      validateLoras(effective);
+      validateTries(effective.tries);
+      validateSeed(effective.seed);
       for (const variant of expandBraceVariants(effective)) {
         expanded.push(variant);
       }

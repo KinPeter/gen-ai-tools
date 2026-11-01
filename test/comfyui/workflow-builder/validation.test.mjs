@@ -780,7 +780,7 @@ describe("validation.mjs", () => {
       expect(() => validateSeed(true)).toThrow(
         '"seed" must be a finite number or "random"',
       );
-      expect(() => validateSeed(null)).toThrow(
+      expect(() => validateSeed(null, false)).toThrow(
         '"seed" must be a finite number or "random"',
       );
     });
@@ -843,6 +843,72 @@ describe("validation.mjs", () => {
     it("throws when isOptional=false and value is undefined", () => {
       expect(() => validateTries(undefined, false)).toThrow(
         '"tries" must be an integer >= 1',
+      );
+    });
+
+    it("returns by default (isOptional flipped to true) when value is undefined", () => {
+      expect(validateTries(undefined)).toBeUndefined();
+    });
+
+    it("returns by default (isOptional flipped to true) when value is null", () => {
+      expect(validateTries(null)).toBeUndefined();
+    });
+  });
+
+  // ---- Tests for flipped default isOptional across all validators ----
+
+  describe("validateSeed default isOptional", () => {
+    it("returns when value is undefined (no args)", () => {
+      expect(validateSeed()).toBeUndefined();
+    });
+
+    it("returns when value is null (no args)", () => {
+      expect(validateSeed(null)).toBeUndefined();
+    });
+
+    it("throws when isOptional explicitly false", () => {
+      expect(() => validateSeed(null, false)).toThrow(
+        '"seed" must be a finite number or "random"',
+      );
+    });
+  });
+
+  describe("validatePromptArray default isOptional", () => {
+    it("returns when field is null (no isOptional arg)", () => {
+      expect(validatePromptArray({ prompt: null }, "prompt")).toBeUndefined();
+    });
+
+    it("returns when field is missing (no isOptional arg)", () => {
+      expect(validatePromptArray({}, "prompt")).toBeUndefined();
+    });
+
+    it("throws when isOptional explicitly false and field is null", () => {
+      expect(() =>
+        validatePromptArray({ prompt: null }, "prompt", false),
+      ).toThrow('"prompt" must be a list');
+    });
+  });
+
+  describe("validateClipSkip default isOptional", () => {
+    it("returns when value is null (no isOptional arg)", () => {
+      expect(validateClipSkip({ "clip-skip": null })).toBeUndefined();
+    });
+
+    it("throws when isOptional explicitly false and value is null", () => {
+      expect(() => validateClipSkip({ "clip-skip": null }, false)).toThrow(
+        '"clip-skip" must be a finite number',
+      );
+    });
+  });
+
+  describe("validateLoras default isOptional", () => {
+    it("returns when loras is null (no isOptional arg)", () => {
+      expect(validateLoras({ loras: null })).toBeUndefined();
+    });
+
+    it("throws when isOptional explicitly false and loras is null", () => {
+      expect(() => validateLoras({ loras: null }, false)).toThrow(
+        '"loras" must be a list',
       );
     });
   });

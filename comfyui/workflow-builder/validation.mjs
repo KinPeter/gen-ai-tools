@@ -3,7 +3,7 @@
 export function validateNumber(
   value,
   fieldName,
-  isOptional = false,
+  isOptional = true,
   warn = false,
 ) {
   if (isOptional && value == null) {
@@ -24,7 +24,7 @@ export function validateNumber(
 export function validateString(
   value,
   fieldName,
-  isOptional = false,
+  isOptional = true,
   warn = false,
 ) {
   if (isOptional && value == null) {
@@ -42,7 +42,7 @@ export function validateString(
   }
 }
 
-export function validateSeed(value, isOptional = false) {
+export function validateSeed(value, isOptional = true) {
   if (isOptional && value == null) return;
   if (
     (typeof value === "number" && !Number.isFinite(value)) ||
@@ -54,7 +54,7 @@ export function validateSeed(value, isOptional = false) {
   }
 }
 
-export function validateTries(value, isOptional = false) {
+export function validateTries(value, isOptional = true) {
   if (isOptional && value == null) return;
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(
@@ -70,29 +70,31 @@ export function validateJobData(data) {
   if (!Array.isArray(data)) return;
 
   for (const item of data) {
-    // Mandatory fields (isOptional = false, defaults).
-    validateString(item["base-workflow"], "base-workflow");
+    // Mandatory fields.
+    validateString(item["base-workflow"], "base-workflow", false);
     if (!Array.isArray(item?.prompts) || item.prompts.length === 0) {
       throw new Error(
         `"prompts" must be a non-empty list: ${JSON.stringify(item)}`,
       );
     }
 
-    // Optional fields (isOptional = true) — use validateString for string fields.
-    validateString(item["output-folder"], "output-folder", true, true);
-    validateString(item["filename-prefix"], "filename-prefix", true, true);
-    validateNumber(item.steps, "steps", true);
-    validateNumber(item.cfg, "cfg", true);
-    validateString(item.sampler, "sampler", true);
-    validateString(item.scheduler, "scheduler", true);
-    validateSeed(item.seed, true);
-    validateTries(item.tries, true);
+    // Optional fields — use validateString for string fields.
+    validateString(item["output-folder"], "output-folder", undefined, true);
+    validateString(item["filename-prefix"], "filename-prefix", undefined, true);
 
-    // Optional complex fields — pass isOptional: true.
-    validateLoras(item, true);
-    validateClipSkip(item, true);
-    validatePromptArray(item, "prompt", true);
-    validatePromptArray(item, "negative-prompt", true);
+    validateNumber(item.steps, "steps");
+    validateNumber(item.cfg, "cfg");
+
+    validateString(item.sampler, "sampler");
+    validateString(item.scheduler, "scheduler");
+    validateSeed(item.seed);
+    validateTries(item.tries);
+
+    // Optional complex fields.
+    validateLoras(item);
+    validateClipSkip(item);
+    validatePromptArray(item, "prompt");
+    validatePromptArray(item, "negative-prompt");
 
     // size validation (object type, validate if present).
     if (item?.size != null) {
@@ -115,7 +117,7 @@ export function validateJobData(data) {
   }
 }
 
-export function validatePromptArray(effective, fieldName, isOptional = false) {
+export function validatePromptArray(effective, fieldName, isOptional = true) {
   if (isOptional && effective[fieldName] == null) return;
   if (!Array.isArray(effective[fieldName])) {
     throw new Error(
@@ -124,7 +126,7 @@ export function validatePromptArray(effective, fieldName, isOptional = false) {
   }
 }
 
-export function validateClipSkip(effective, isOptional = false) {
+export function validateClipSkip(effective, isOptional = true) {
   if (isOptional && effective["clip-skip"] == null) return;
   if (
     typeof effective["clip-skip"] !== "number" ||
@@ -136,7 +138,7 @@ export function validateClipSkip(effective, isOptional = false) {
   }
 }
 
-export function validateLoras(effective, isOptional = false) {
+export function validateLoras(effective, isOptional = true) {
   if (isOptional && effective.loras == null) return;
   if (!Array.isArray(effective.loras)) {
     throw new Error(
