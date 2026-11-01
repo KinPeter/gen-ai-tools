@@ -1,7 +1,19 @@
 // ---- helpers ----
 
-export function validateNumber(value, fieldName, isOptional = false) {
-  if (isOptional && value == null) return;
+export function validateNumber(
+  value,
+  fieldName,
+  isOptional = false,
+  warn = false,
+) {
+  if (isOptional && value == null) {
+    if (warn) {
+      console.warn(
+        `WARNING: "${fieldName}" is not specified, going with defaults, but should be specified.`,
+      );
+    }
+    return;
+  }
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(
       `"${fieldName}" must be a finite number: ${JSON.stringify(value)}`,
@@ -9,8 +21,20 @@ export function validateNumber(value, fieldName, isOptional = false) {
   }
 }
 
-export function validateString(value, fieldName, isOptional = false) {
-  if (isOptional && value == null) return;
+export function validateString(
+  value,
+  fieldName,
+  isOptional = false,
+  warn = false,
+) {
+  if (isOptional && value == null) {
+    if (warn) {
+      console.warn(
+        `WARNING: "${fieldName}" is not specified, going with defaults, but should be specified.`,
+      );
+    }
+    return;
+  }
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(
       `"${fieldName}" must be a non-empty string: ${JSON.stringify(value)}`,
@@ -55,8 +79,8 @@ export function validateJobData(data) {
     }
 
     // Optional fields (isOptional = true) — use validateString for string fields.
-    validateString(item["output-folder"], "output-folder", true);
-    validateString(item["filename-prefix"], "filename-prefix", true);
+    validateString(item["output-folder"], "output-folder", true, true);
+    validateString(item["filename-prefix"], "filename-prefix", true, true);
     validateNumber(item.steps, "steps", true);
     validateNumber(item.cfg, "cfg", true);
     validateString(item.sampler, "sampler", true);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   validateJobData,
   validateString,
@@ -94,6 +94,74 @@ describe("validation.mjs", () => {
           },
         ]),
       ).toThrow('"filename-prefix"');
+    });
+
+    it("does not throw when output-folder is undefined (missing)", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(
+        validateJobData([
+          {
+            "base-workflow": "test",
+            prompts: [{ prompt: ["a"] }],
+          },
+        ]),
+      ).toBeUndefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        'WARNING: "output-folder" is not specified, going with defaults, but should be specified.',
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("does not throw when output-folder is null", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(
+        validateJobData([
+          {
+            "base-workflow": "test",
+            "output-folder": null,
+            prompts: [{ prompt: ["a"] }],
+          },
+        ]),
+      ).toBeUndefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        'WARNING: "output-folder" is not specified, going with defaults, but should be specified.',
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("does not throw when filename-prefix is undefined (missing)", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(
+        validateJobData([
+          {
+            "base-workflow": "test",
+            "output-folder": "out",
+            prompts: [{ prompt: ["a"] }],
+          },
+        ]),
+      ).toBeUndefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        'WARNING: "filename-prefix" is not specified, going with defaults, but should be specified.',
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("does not throw when filename-prefix is null", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(
+        validateJobData([
+          {
+            "base-workflow": "test",
+            "output-folder": "out",
+            "filename-prefix": null,
+            prompts: [{ prompt: ["a"] }],
+          },
+        ]),
+      ).toBeUndefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        'WARNING: "filename-prefix" is not specified, going with defaults, but should be specified.',
+      );
+      warnSpy.mockRestore();
     });
 
     it("allows valid base-workflow, output-folder, filename-prefix", () => {
@@ -588,6 +656,42 @@ describe("validation.mjs", () => {
         '"base-workflow" must be a non-empty string',
       );
     });
+
+    it("does not throw when value is null, isOptional=true, and warn=true", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(validateString(null, "output-folder", true, true)).toBeUndefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        'WARNING: "output-folder" is not specified, going with defaults, but should be specified.',
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("does not warn when value is null, isOptional=true, and warn=false", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(
+        validateString(undefined, "output-folder", true, false),
+      ).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it("does not warn when value is empty string, isOptional=true, and warn=true", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(() => validateString("", "output-folder", true, true)).toThrow(
+        '"output-folder" must be a non-empty string',
+      );
+      expect(console.warn).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it("does not warn when value is a valid string", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(
+        validateString("my-folder", "output-folder", true, true),
+      ).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
   });
 
   describe("validateNumber isOptional", () => {
@@ -616,6 +720,45 @@ describe("validation.mjs", () => {
 
     it("returns when value is null and isOptional=true", () => {
       expect(validateNumber(null, "steps", true)).toBeUndefined();
+    });
+
+    it("does not throw when value is undefined, isOptional=true, and warn=true", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(validateNumber(undefined, "steps", true, true)).toBeUndefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        'WARNING: "steps" is not specified, going with defaults, but should be specified.',
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("does not warn when value is undefined, isOptional=true, and warn=false", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(validateNumber(undefined, "steps", true, false)).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it("does not warn when value is a valid finite number", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(validateNumber(30, "steps", true, true)).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it("does not throw when value is null, isOptional=true, and warn=true", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(validateNumber(null, "steps", true, true)).toBeUndefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        'WARNING: "steps" is not specified, going with defaults, but should be specified.',
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("does not warn when value is zero, isOptional=true, and warn=true", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      expect(validateNumber(0, "steps", true, true)).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
   });
 
