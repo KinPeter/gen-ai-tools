@@ -18,6 +18,9 @@ function applySamplerOverrides(workflow, item, forceRandomSeed) {
   if (item?.steps != null) sampler.inputs.steps = item.steps;
   if (item?.cfg != null) sampler.inputs.cfg = item.cfg;
 
+  if (item?.sampler != null) sampler.inputs.sampler_name = item.sampler;
+  if (item?.scheduler != null) sampler.inputs.scheduler = item.scheduler;
+
   if (!forceRandomSeed && item?.seed != null && item.seed !== "random") {
     sampler.inputs.seed = item.seed;
   } else {

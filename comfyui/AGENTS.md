@@ -22,7 +22,7 @@ Generate images via ComfyUI — workflow building, job execution, output handlin
 
 - Top-level list of blocks; every block **must** have a `prompts` list.
 - Per-prompt overrides (`tries`, `seed`, `prompt`, `negative-prompt`, `loras`, `clip-skip`) take precedence over parent.
-- `base-workflow: <name>` loads `comfyui/workflows/<name>.json` (`.json` suffix optional). Applies `steps`/`cfg`/`size`/`filename-prefix` when set.
+- `base-workflow: <name>` loads `comfyui/workflows/<name>.json` (`.json` suffix optional). Applies `steps`/`cfg`/`size`/`filename-prefix`/`sampler`/`scheduler` when set.
 - `tries` must be int ≥ 1, default 1. `loras` is a list of `{name, strength}` (at least one) that wires into a `LoraLoader` chain. `clip-skip` overrides `stop_at_clip_layer`.
 - **Seed rule**: fixed seed kept only when `tries` is unset or 1; `tries > 1` always randomizes. Otherwise seed is random (max safe integer).
 - Overrides locate nodes by `class_type` (`KSampler`, `EmptyLatentImage`, `SaveImage`); new bases must keep those node types.

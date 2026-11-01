@@ -37,6 +37,8 @@
   filename-prefix: bp-cp
   steps: 1
   cfg: 4.0
+  sampler: lcm
+  scheduler: kl_optimal
   size:
     width: 1216
     height: 832

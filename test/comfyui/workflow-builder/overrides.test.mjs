@@ -183,6 +183,71 @@ describe("overrides.mjs", () => {
     expect(wf.Sampler.inputs.cfg).toBe(8);
   });
 
+  it("overrides sampler_name when sampler is set", () => {
+    const wf = makeBaseWorkflow();
+    wf.Sampler.inputs.sampler_name = "euler";
+    applyOverrides(wf, { sampler: "ddpm" }, false);
+    expect(wf.Sampler.inputs.sampler_name).toBe("ddpm");
+  });
+
+  it("overrides scheduler when scheduler is set", () => {
+    const wf = makeBaseWorkflow();
+    wf.Sampler.inputs.scheduler = "normal";
+    applyOverrides(wf, { scheduler: "karras" }, false);
+    expect(wf.Sampler.inputs.scheduler).toBe("karras");
+  });
+
+  it("overrides both sampler and scheduler together", () => {
+    const wf = makeBaseWorkflow();
+    wf.Sampler.inputs.sampler_name = "euler";
+    wf.Sampler.inputs.scheduler = "normal";
+    applyOverrides(wf, { sampler: "lcm", scheduler: "kl_optimal" }, false);
+    expect(wf.Sampler.inputs.sampler_name).toBe("lcm");
+    expect(wf.Sampler.inputs.scheduler).toBe("kl_optimal");
+  });
+
+  it("preserves base sampler_name when sampler is not provided", () => {
+    const wf = makeBaseWorkflow();
+    wf.Sampler.inputs.sampler_name = "euler";
+    applyOverrides(wf, {}, false);
+    expect(wf.Sampler.inputs.sampler_name).toBe("euler");
+  });
+
+  it("preserves base scheduler when scheduler is not provided", () => {
+    const wf = makeBaseWorkflow();
+    wf.Sampler.inputs.scheduler = "normal";
+    applyOverrides(wf, {}, false);
+    expect(wf.Sampler.inputs.scheduler).toBe("normal");
+  });
+
+  // --- Minor coverage additions from review ---
+
+  it('applies empty-string sampler override (sampler: "")', () => {
+    const wf = makeBaseWorkflow();
+    wf.Sampler.inputs.sampler_name = "euler";
+    applyOverrides(wf, { sampler: "" }, false);
+    // `"" != null` is true, so empty string is applied (not skipped).
+    expect(wf.Sampler.inputs.sampler_name).toBe("");
+  });
+
+  it("applies sampler when base lacks sampler_name", () => {
+    const wf = makeBaseWorkflow();
+    // Remove sampler_name so the base has none.
+    delete wf.Sampler.inputs.sampler_name;
+    expect(wf.Sampler.inputs.sampler_name).toBeUndefined();
+    applyOverrides(wf, { sampler: "lcm" }, false);
+    expect(wf.Sampler.inputs.sampler_name).toBe("lcm");
+  });
+
+  it("applies scheduler when base lacks scheduler", () => {
+    const wf = makeBaseWorkflow();
+    // Remove scheduler so the base has none.
+    delete wf.Sampler.inputs.scheduler;
+    expect(wf.Sampler.inputs.scheduler).toBeUndefined();
+    applyOverrides(wf, { scheduler: "karras" }, false);
+    expect(wf.Sampler.inputs.scheduler).toBe("karras");
+  });
+
   it("sets random seed when no seed is provided but forceRandomSeed is true", () => {
     const wf = makeBaseWorkflow();
     applyOverrides(wf, {}, true);

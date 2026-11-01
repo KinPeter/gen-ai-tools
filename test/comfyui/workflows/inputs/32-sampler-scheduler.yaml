@@ -1,0 +1,7 @@
+# e2e-32: sampler and scheduler overrides at job level
+- base-workflow: full-base
+  sampler: lcm
+  scheduler: kl_optimal
+  prompts:
+    - prompt:
+        - sampler scheduler test
