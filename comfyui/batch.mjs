@@ -4,7 +4,11 @@ import { fileURLToPath } from "node:url";
 import { requireWorkflows } from "./workflow-builder/workflow.mjs";
 import { requireConfig } from "./jobs/config.mjs";
 import { requireInputName } from "./utils/args.mjs";
-import { queuePrompt, waitForCompletion, freeMemory } from "./jobs/comfy.mjs";
+import {
+  queuePrompt,
+  waitForCompletion,
+  requestMemoryCleanup,
+} from "./jobs/comfy.mjs";
 import { saveOutputs } from "./jobs/save.mjs";
 import { convertOutputs } from "./jobs/convert.mjs";
 import { addToLog, writeLog } from "./jobs/log.mjs";
@@ -58,13 +62,7 @@ export async function main() {
     if (!ok) allOk = false;
   }
 
-  try {
-    console.log("Freeing GPU memory...");
-    await freeMemory(config.server, { freeMemory: true, unloadModels: true });
-    console.log("Memory freed.");
-  } catch (e) {
-    console.warn("GPU memory free failed (non-fatal)", e);
-  }
+  await requestMemoryCleanup(config.server);
 
   return allOk;
 }

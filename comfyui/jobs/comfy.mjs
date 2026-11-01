@@ -70,6 +70,16 @@ export async function freeMemory(
   return "ok";
 }
 
+export async function requestMemoryCleanup(server) {
+  console.log("Freeing GPU memory...");
+  try {
+    await freeMemory(server, { freeMemory: true, unloadModels: true });
+    console.log("Memory freed.");
+  } catch (e) {
+    console.warn("GPU memory free failed (non-fatal)", e);
+  }
+}
+
 export async function fetchImage(server, { filename, subfolder, type }) {
   const qs = new URLSearchParams({
     filename,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server, comfyHandlers } from "../../support/server.mjs";
 import {
@@ -6,6 +6,7 @@ import {
   freeMemory,
   queuePrompt,
   waitForCompletion,
+  requestMemoryCleanup,
 } from "../../../comfyui/jobs/comfy.mjs";
 
 const base = "http://comfy.test";
@@ -120,6 +121,41 @@ describe("ComfyUI client", () => {
         free_memory: false,
         unload_models: false,
       });
+    });
+  });
+
+  describe("requestMemoryCleanup", () => {
+    it("calls freeMemory with correct server and params", async () => {
+      let capturedBody;
+      server.use(
+        http.post(`${base}/api/free`, ({ request }) => {
+          capturedBody = request.json();
+          return HttpResponse.json({ status: "success" });
+        }),
+      );
+      const logSpy = vi.spyOn(console, "log").mockReturnThis();
+      const result = await requestMemoryCleanup(base);
+      expect(logSpy).toHaveBeenCalledWith("Freeing GPU memory...");
+      expect(result).toBeUndefined();
+      expect(await capturedBody).toEqual({
+        free_memory: true,
+        unload_models: true,
+      });
+    });
+
+    it("handles errors silently and logs warn with error", async () => {
+      server.use(
+        http.post(`${base}/api/free`, () =>
+          HttpResponse.json({ error: "oops" }, { status: 500 }),
+        ),
+      );
+      const warnSpy = vi.spyOn(console, "warn").mockReturnThis();
+      const result = await requestMemoryCleanup(base);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "GPU memory free failed (non-fatal)",
+        expect.any(Error),
+      );
+      expect(result).toBeUndefined();
     });
   });
 });
