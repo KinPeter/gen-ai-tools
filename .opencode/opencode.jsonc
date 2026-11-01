@@ -22,5 +22,38 @@
       "description": "Fixes actionable review findings and reruns tests and QA",
       "mode": "subagent",
     },
+    "image-input-helper": {
+      "description": "Primary agent for generating ComfyUI batch image input YAML files",
+      "mode": "primary",
+      "permissions": [
+        {
+          "action": "subagent",
+          "resource": "image-input-validator",
+          "effect": "allow",
+        },
+        {
+          "action": "subagent",
+          "resource": "image-log-searcher",
+          "effect": "allow",
+        },
+        {
+          "action": "subagent",
+          "resource": "image-log-finder",
+          "effect": "allow",
+        },
+      ],
+    },
+    "image-log-finder": {
+      "description": "Finds and returns log entries for one or more image files using agent-tools/lookup-log.mjs",
+      "mode": "subagent",
+    },
+    "image-log-searcher": {
+      "description": "Searches and collects logs using agent-tools/log-search.mjs with a two-phase approach: text summary then JSON output",
+      "mode": "subagent",
+    },
+    "image-input-validator": {
+      "description": "Validates ComfyUI batch job YAML input files using agent-tools/validate-input.mjs",
+      "mode": "subagent",
+    },
   },
 }

@@ -132,6 +132,22 @@ See [RunPod README](./runpod/README.md)
 
 See [Logging README](./logging/README.md)
 
+## Image helper agents (OpenCode)
+
+OpenCode provides a set of image helper agents for working with ComfyUI batch
+input YAML files:
+
+- **image-input-helper** — Primary agent. Generates and refines input YAML files
+  for SDXL batch image generation, using the `/image-input` command.
+- **image-input-validator** (subagent) — Validates YAML files against the batch
+  job schema via `agent-tools/validate-input.mjs`.
+- **image-log-finder** (subagent) — Looks up log entries for specific image files
+  via `agent-tools/lookup-log.mjs`.
+- **image-log-searcher** (subagent) — Searches historical logs with a two-phase
+  approach (text preview → full JSON) via `agent-tools/log-search.mjs`.
+
+These agents are OpenCode-only (no Claude Code mirrors).
+
 ## npm scripts
 
 | Script                                   | Command                                                      |
