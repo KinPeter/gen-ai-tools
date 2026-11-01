@@ -1,0 +1,3 @@
+base-workflow: example-base-workflow
+output-folder: test-folder
+filename-prefix: test

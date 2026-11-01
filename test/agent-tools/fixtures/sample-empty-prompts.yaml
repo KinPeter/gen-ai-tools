@@ -1,0 +1,6 @@
+- base-workflow: example-base-workflow
+  output-folder: test-folder
+  filename-prefix: test
+  steps: 20
+  cfg: 7.5
+  prompts: []
