@@ -49,7 +49,7 @@ modes:
 
 ```
 node agent-tools/log-search.mjs [--workflow <name>] [--prefix <name>] [--lora <name>]
-  [--prompt <phrase>] [--sampler <name>] [--scheduler <name>]
+  [--prompt <phrase>] [--sampler <name>] [--scheduler <name>] [--model <name>]
   [--output-folder <name>] [--limit <n>]
 ```
 
@@ -94,9 +94,10 @@ Map natural language instructions to the correct flags. Examples:
 | "filename / file prefix started with viking"          | `--prefix viking`                        |
 | "used a cyberpunk named lora"                         | `--lora cyberpunk`                       |
 | "sampler was euler"                                   | `--sampler euler`                        |
+| "scheduler was karras"                                | `--scheduler karras`                     |
+| "model was stable-diffusion-xl"                       | `--model stable-diffusion-xl`            |
 | "prompt contained 'black dress'"                      | `--prompt "black dress"`                 |
 | "output folder was xxx"                               | `--output-folder xxx`                    |
-| "scheduler was xxx"                                   | `--scheduler xxx`                        |
 
 Rules:
 
@@ -106,6 +107,7 @@ Rules:
 - **prompt / prompts / prompt contained** → `--prompt`
 - **sampler** → `--sampler`
 - **scheduler** → `--scheduler`
+- **model** → `--model`
 - **output folder / output-folder** → `--output-folder`
 - **multiple items listed** → repeat the flag (AND logic)
 

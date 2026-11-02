@@ -108,6 +108,27 @@ describe("matchesFilter", () => {
     expect(matchesFilter(entry, { scheduler: "KL_OPTIMAL" })).toBe(true);
   });
 
+  it("matches model (case-insensitive substring)", () => {
+    const entry = { prompt: { model: "v1-5-pruned-ckptonly.safetensors" } };
+    expect(matchesFilter(entry, { model: "v1-5" })).toBe(true);
+    expect(matchesFilter(entry, { model: "V1-5" })).toBe(true);
+    expect(matchesFilter(entry, { model: "pruned" })).toBe(true);
+    expect(matchesFilter(entry, { model: "xyz" })).toBe(false);
+  });
+
+  it("matches multiple model values (AND logic)", () => {
+    const entry = {
+      prompt: { model: "v1-5-pruned-ckptonly.safetensors" },
+    };
+    expect(matchesFilter(entry, { model: ["v1-5", "pruned"] })).toBe(true);
+    expect(matchesFilter(entry, { model: ["v1-5", "missing"] })).toBe(false);
+  });
+
+  it("matches model against empty model field", () => {
+    const entry = { prompt: { model: "" } };
+    expect(matchesFilter(entry, { model: "any" })).toBe(false);
+  });
+
   it("returns true when no filters specified", () => {
     const entry = { prompt: {} };
     expect(matchesFilter(entry, {})).toBe(true);
@@ -240,7 +261,7 @@ describe("formatText", () => {
     ];
     const text = formatText(results);
     expect(text).toContain("...");
-    expect(text.length).toBeLessThan(longPrompt.length + 30);
+    expect(text.length).toBeLessThan(longPrompt.length + 36);
   });
 
   it("normalizes existing whitespace to avoid double spaces", () => {

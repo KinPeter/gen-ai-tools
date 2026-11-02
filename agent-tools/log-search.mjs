@@ -14,6 +14,7 @@ const FLAG_MAP = new Map([
   ["--output-folder", "outputFolder"],
   ["--sampler", "sampler"],
   ["--scheduler", "scheduler"],
+  ["--model", "model"],
 ]);
 
 function parseArgs(argv) {
@@ -77,6 +78,7 @@ Options:
   --output-folder <n>   Match output-folder (case-insensitive substring)
   --sampler <name>      Match sampler (case-insensitive substring)
   --scheduler <name>    Match scheduler (case-insensitive substring)
+  --model <name>        Match model (case-insensitive substring)
   --json                Output as JSON array
   --limit <n>           Limit number of results
   --log-dir <path>      Alternative to positional arg for log directory
@@ -202,6 +204,14 @@ function matchesFilter(entry, filters) {
     }
   }
 
+  if (filters.model !== undefined) {
+    const val = String(p.model ?? "");
+    const values = toFilterArray(filters.model);
+    if (!values.every((v) => val.toLowerCase().includes(v.toLowerCase()))) {
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -233,6 +243,7 @@ function formatText(results) {
     lines.push(`    Workflow: ${p["base-workflow"] ?? "(none)"}`);
     lines.push(`    Prefix: ${p["filename-prefix"] ?? "(none)"}`);
     lines.push(`    Folder: ${p["output-folder"] ?? "(none)"}`);
+    lines.push(`    Model: ${p.model ?? "(none)"}`);
     const promptText = String(p.prompt ?? "").replace(/,\s*/g, ", ");
     const shortPrompt =
       promptText.length > 60 ? promptText.slice(0, 57) + "..." : promptText;
