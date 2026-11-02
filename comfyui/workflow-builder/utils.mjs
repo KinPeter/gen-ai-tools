@@ -42,3 +42,18 @@ export function findNodeByClass(workflow, classType) {
   }
   return undefined;
 }
+
+export function getFinalLogDataFromWorkflow(workflow) {
+  const sampler = findNode(workflow, "KSampler") ?? workflow.Sampler;
+  const checkpointLoader = findNode(workflow, "CheckpointLoaderSimple");
+  return {
+    positivePrompt: findPositiveClip(workflow, sampler)?.inputs?.text,
+    negativePrompt: findNegativeClip(workflow, sampler)?.inputs?.text,
+    seed: sampler?.inputs?.seed,
+    steps: sampler?.inputs?.steps,
+    cfg: sampler?.inputs?.cfg,
+    sampler: sampler?.inputs?.["sampler_name"],
+    scheduler: sampler?.inputs?.scheduler,
+    model: checkpointLoader?.inputs?.["ckpt_name"],
+  };
+}

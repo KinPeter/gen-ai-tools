@@ -1,11 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { uploadLog } from "../../logging/upload-log.mjs";
-import {
-  getFinalSeed,
-  getFinalPositivePrompt,
-  getFinalNegativePrompt,
-} from "../workflow-builder/workflow.mjs";
+import { getFinalLogDataFromWorkflow } from "../workflow-builder/utils.mjs";
 
 export function formatDuration(ms) {
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
@@ -24,23 +20,34 @@ export function generationTimeMs(historyEntry) {
 
 export function buildLogEntry({
   input,
-  finalSeed,
-  finalPrompt,
-  finalNegativePrompt,
+  finalWorkflowData,
   filename,
-  outputPath,
   elapsedMs,
   comfyJobId,
 }) {
+  const {
+    model,
+    seed,
+    sampler,
+    scheduler,
+    steps,
+    cfg,
+    positivePrompt,
+    negativePrompt,
+  } = finalWorkflowData;
   return {
     prompt: {
       ...input,
-      seed: finalSeed,
-      prompt: finalPrompt,
-      "negative-prompt": finalNegativePrompt,
+      seed,
+      prompt: positivePrompt,
+      "negative-prompt": negativePrompt,
+      steps,
+      cfg,
+      sampler,
+      scheduler,
+      model,
     },
     filename,
-    outputPath,
     generatedIn: elapsedMs == null ? null : formatDuration(elapsedMs),
     comfyJobId,
   };
@@ -60,18 +67,13 @@ export async function addToLog({
   historyEntry,
 }) {
   const elapsedMs = generationTimeMs(historyEntry);
-  const finalSeed = getFinalSeed(job.workflow);
-  const finalPrompt = getFinalPositivePrompt(job.workflow);
-  const finalNegativePrompt = getFinalNegativePrompt(job.workflow);
+  const finalWorkflowData = getFinalLogDataFromWorkflow(job.workflow);
   const newEntries = [];
   for (const file of saved) {
     const entry = buildLogEntry({
       input: job.input,
-      finalSeed,
-      finalPrompt,
-      finalNegativePrompt,
+      finalWorkflowData,
       filename: file.filename,
-      outputPath: file.destDir,
       elapsedMs,
       comfyJobId: promptId,
     });

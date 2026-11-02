@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
-import { findNode, findPositiveClip, findNegativeClip } from "./utils.mjs";
 import { validateJobData } from "./validation.mjs";
 import { expandPrompts } from "./prompts.mjs";
 import { applyOverrides } from "./overrides.mjs";
@@ -105,19 +104,4 @@ export async function requireWorkflows(
   }
 
   return workflows;
-}
-
-export function getFinalSeed(workflow) {
-  const sampler = findNode(workflow, "KSampler") ?? workflow.Sampler;
-  return sampler?.inputs?.seed;
-}
-
-export function getFinalPositivePrompt(workflow) {
-  const sampler = findNode(workflow, "KSampler") ?? workflow.Sampler;
-  return findPositiveClip(workflow, sampler)?.inputs?.text;
-}
-
-export function getFinalNegativePrompt(workflow) {
-  const sampler = findNode(workflow, "KSampler") ?? workflow.Sampler;
-  return findNegativeClip(workflow, sampler)?.inputs?.text;
 }
