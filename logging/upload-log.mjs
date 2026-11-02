@@ -1,6 +1,6 @@
-import path from "node:path";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { stripExtension } from "./utils.mjs";
 
 function tableName() {
   return process.env.TABLE_NAME ?? process.env.AWS_LOGS_TABLE_NAME;
@@ -15,33 +15,15 @@ function defaultDocClient() {
   return DynamoDBDocumentClient.from(client);
 }
 
-// Strips only the last extension ("a.b.c" -> "a.b"). Trims surrounding
-// whitespace (to match the log-find Lambda normalizer), then applies
-// path.basename (after normalizing backslashes so a stray Windows path like
-// "C:\dir\file.png" still yields the base stem). Extensionless names and
-// leading-dot dotfiles (".hidden") pass through unchanged.
-export function stripExtension(filename) {
-  const base = path.basename(
-    String(filename ?? "")
-      .trim()
-      .replace(/\\/g, "/"),
-  );
-  const dotIndex = base.lastIndexOf(".");
-  if (dotIndex <= 0) {
-    return base;
-  }
-  return base.slice(0, dotIndex);
-}
-
 // Matches the log-find Lambda schema: the String partition key `filename`
 // holds the image base filename WITHOUT extension and `data` holds the
-// JSON-stringified log entry.
+// log entry.
 export function buildPutItem({ table, filename, logEntry }) {
   return {
     TableName: table,
     Item: {
       filename,
-      data: JSON.stringify(logEntry),
+      data: logEntry,
     },
   };
 }

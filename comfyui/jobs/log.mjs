@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { uploadLog } from "../../logging/upload-log.mjs";
 import { getFinalLogDataFromWorkflow } from "../workflow-builder/utils.mjs";
+import { stripExtension } from "../../logging/utils.mjs";
 
 export function formatDuration(ms) {
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
@@ -36,18 +37,16 @@ export function buildLogEntry({
     negativePrompt,
   } = finalWorkflowData;
   return {
-    prompt: {
-      ...input,
-      seed,
-      prompt: positivePrompt,
-      "negative-prompt": negativePrompt,
-      steps,
-      cfg,
-      sampler,
-      scheduler,
-      model,
-    },
-    filename,
+    ...input,
+    model,
+    prompt: positivePrompt,
+    "negative-prompt": negativePrompt,
+    steps,
+    cfg,
+    sampler,
+    scheduler,
+    seed,
+    filename: stripExtension(filename),
     generatedIn: elapsedMs == null ? null : formatDuration(elapsedMs),
     comfyJobId,
   };
