@@ -101,11 +101,17 @@ describe("utilities", () => {
     dirs.push(root);
     const entry = buildLogEntry({
       input: { prompt: ["x"] },
-      finalSeed: 3,
-      finalPrompt: "base, x",
-      finalNegativePrompt: "bad",
+      finalWorkflowData: {
+        model: "model.safetensors",
+        seed: 3,
+        sampler: "euler",
+        scheduler: "normal",
+        steps: 20,
+        cfg: 8,
+        positivePrompt: "base, x",
+        negativePrompt: "bad",
+      },
       filename: "x.png",
-      outputPath: root,
       elapsedMs: null,
       comfyJobId: "id",
     });

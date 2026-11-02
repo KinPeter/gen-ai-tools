@@ -3,11 +3,15 @@ import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { getFinalLogDataFromWorkflow } from "../../../comfyui/workflow-builder/utils.mjs";
 import {
-  getFinalPositivePrompt,
   loadWorkflows,
   requireWorkflows,
 } from "../../../comfyui/workflow-builder/workflow.mjs";
+
+function getFinalPositivePrompt(workflow) {
+  return getFinalLogDataFromWorkflow(workflow).positivePrompt;
+}
 
 describe("workflow expansion", () => {
   // Every fixture gets its own throwaway temp "inputs" tree (injected into
