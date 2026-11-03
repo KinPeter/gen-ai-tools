@@ -13,11 +13,15 @@ import { saveOutputs } from "./jobs/save.mjs";
 import { convertOutputs } from "./jobs/convert.mjs";
 import { addToLog, writeLog } from "./jobs/log.mjs";
 import { timestamp } from "./utils/naming.mjs";
+import { getImageLogConnection } from "../logging/mongodb/client.mjs";
 
 const LOCAL_OUTPUT_PATH = path.join(import.meta.dirname, "..", "output");
 const LOCAL_DIST_PATH = path.join(import.meta.dirname, "..", "dist");
 
-export async function runJob(job, { config, logPath, logEntries }) {
+export async function runJob(
+  job,
+  { config, dbConnection, logPath, logEntries },
+) {
   try {
     const promptId = await queuePrompt(config.server, job.workflow);
     console.log(`Queued: ${promptId}`);
@@ -30,7 +34,15 @@ export async function runJob(job, { config, logPath, logEntries }) {
       input: job.input,
       historyEntry,
     });
-    await addToLog({ logPath, logEntries, job, saved, promptId, historyEntry });
+    await addToLog({
+      logPath,
+      logEntries,
+      job,
+      saved,
+      promptId,
+      historyEntry,
+      dbConnection,
+    });
     await convertOutputs(saved, {
       outputBaseDir: LOCAL_OUTPUT_PATH,
       distBaseDir: LOCAL_DIST_PATH,
@@ -47,6 +59,7 @@ export async function main() {
   const config = await requireConfig();
   console.log(`ComfyUI server: ${config.server} (from ${config.serverSource})`);
   const name = requireInputName();
+  const dbConnection = await getImageLogConnection();
   const runTs = timestamp();
   const logPath = path.join(LOCAL_OUTPUT_PATH, "logs", `${name}_${runTs}.json`);
   const logEntries = [];
@@ -58,11 +71,17 @@ export async function main() {
     console.log(`[${i + 1}/${jobs.length}] Running workflow...`);
     // Debugging: uncomment this line to see the full workflow
     // console.log(JSON.stringify(jobs[i].workflow, null, 2));
-    const ok = await runJob(jobs[i], { config, logPath, logEntries });
+    const ok = await runJob(jobs[i], {
+      config,
+      dbConnection,
+      logPath,
+      logEntries,
+    });
     if (!ok) allOk = false;
   }
 
   await requestMemoryCleanup(config.server);
+  await dbConnection.client.close();
 
   return allOk;
 }

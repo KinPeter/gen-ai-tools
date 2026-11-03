@@ -49,7 +49,7 @@ npm install
 | -------------------- | ----------------------------------------------------------------------------------- |
 | `comfyui/`           | ComfyUI inference — workflow building, job execution, output handling, log writing. |
 | `runpod/`            | RunPod GPU pod lifecycle — create, wait, stop, terminate.                           |
-| `logging/`           | DynamoDB logging helpers, Lambda deployment, browser UI build, FTP upload.          |
+| `logging/`           | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.  |
 | `dist-browser/`      | Vite + React browser UI for serving `dist/` outputs.                                |
 | `test/`              | Vitest unit and E2E golden-file tests (mirrors source structure).                   |
 | `comfyui/workflows/` | Base workflow JSON templates (used by the workflow builder).                        |
@@ -58,6 +58,8 @@ npm install
 | `output/`            | Raw PNG outputs + run logs. All gitignored.                                         |
 
 Each module directory has its own `AGENTS.md` with detailed conventions. Scripts are defined in `package.json` — use `npm run <script>` to invoke them.
+
+The logging module is transitioning from **DynamoDB + Lambda** (legacy) to **MongoDB + local scripts** (new primary). See `logging/AGENTS.md` for details.
 
 ## Required QA
 

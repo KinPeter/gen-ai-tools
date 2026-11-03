@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ uploadLog: vi.fn() }));
 
-vi.mock("../../../logging/upload-log.mjs", () => mocks);
+vi.mock("../../../logging/mongodb/upload-log.mjs", () => mocks);
 
 const { addToLog } = await import("../../../comfyui/jobs/log.mjs");
 

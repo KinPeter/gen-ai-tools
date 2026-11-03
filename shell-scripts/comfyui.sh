@@ -5,9 +5,6 @@
 # Run a single batch by input name (resolves from project root).
 comfy-batch() { node "$(dirname "${BASH_SOURCE[0]}")/../comfyui/batch.mjs" "$@"; }
 
-# Look up a run-log entry by image filename.
-flf() { node "$(dirname "${BASH_SOURCE[0]}")/../comfyui/jobs/find-log-from-files.mjs" "$@"; }
-
 # Shared batch loop — called by both comfy() and runpod-comfy().
 # Modifies caller's 'interrupted' and 'failed' (declared as local -g in the caller).
 _run_batches() {

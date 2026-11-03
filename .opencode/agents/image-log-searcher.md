@@ -42,8 +42,7 @@ then return structured results to the parent agent.
 
 Use the `shell` tool to invoke the script below.
 The script is located at `<repo root>/agent-tools/log-search.mjs`. It searches log
-entries in `output/logs/` (or a specified directory) using filters, with two output
-modes:
+entries in the db using filters, with two output modes:
 
 ### Default (text) output
 

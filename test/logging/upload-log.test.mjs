@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
-import {
-  buildPutItem,
-  stripExtension,
-  uploadLog,
-} from "../../logging/upload-log.mjs";
+import { buildPutItem, uploadLog } from "../../logging/upload-log.mjs";
+import { stripExtension } from "../../logging/utils.mjs";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -59,7 +56,7 @@ describe("upload-log", () => {
       TableName: "logs-table",
       Item: {
         filename: "bp-cp_20261005233501",
-        data: JSON.stringify(logEntry),
+        data: logEntry,
       },
     });
   });
@@ -82,7 +79,7 @@ describe("upload-log", () => {
       TableName: "logs-table",
       Item: {
         filename: "bp-cp_20261005233501",
-        data: JSON.stringify(entries[0]),
+        data: entries[0],
       },
     });
     expect(sent[1].input.Item.filename).toBe("bp-cp_20261005233502");

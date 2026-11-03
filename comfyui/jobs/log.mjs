@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { uploadLog } from "../../logging/upload-log.mjs";
+import { uploadLog } from "../../logging/mongodb/upload-log.mjs";
 import { getFinalLogDataFromWorkflow } from "../workflow-builder/utils.mjs";
 import { stripExtension } from "../../logging/utils.mjs";
 
@@ -64,6 +64,7 @@ export async function addToLog({
   saved,
   promptId,
   historyEntry,
+  dbConnection,
 }) {
   const elapsedMs = generationTimeMs(historyEntry);
   const finalWorkflowData = getFinalLogDataFromWorkflow(job.workflow);
@@ -82,7 +83,7 @@ export async function addToLog({
   await writeLog(logPath, logEntries);
   if (newEntries.length > 0) {
     try {
-      await uploadLog(newEntries);
+      await uploadLog(newEntries, dbConnection);
     } catch (error) {
       console.error(`Log upload failed: ${error?.message ?? error}`);
     }

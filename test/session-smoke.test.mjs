@@ -12,7 +12,6 @@ const checks = [
   "start-pod",
   "stop-pod",
   "comfy-batch",
-  "flf",
   "runpod-comfy",
   "comfy",
 ];
@@ -30,7 +29,7 @@ function assertFunctionsSourceable(fromCwd = null) {
 }
 
 describe("session.sh smoke test", () => {
-  it("defines all 7 functions when sourced from project root", () => {
+  it("defines all 6 functions when sourced from project root", () => {
     const result = assertFunctionsSourceable(projectRoot);
     if (result.length > 0) {
       throw new Error(`Unexpected stdout: ${result.toString()}`);

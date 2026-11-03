@@ -43,9 +43,10 @@ Run these stages sequentially and do not skip a stage:
    correctness, regressions, maintainability, language/framework concerns,
    tests, and QA. It must write findings to a new UTC-timestamped file under
    `.tmp/` and return the exact path.
-3. Pass that exact review artifact path and the original requirement to the
-   `fixer` subagent. It must fix actionable findings, add or update tests as
-   needed, and rerun the test suite and repository QA gates.
+3. Report a very brief summary of the review findings focusing on the actionable
+   items to the user, and then pass that exact review artifact path and the
+   original requirement to the `fixer` subagent. It must fix actionable findings,
+   add or update tests as needed, and rerun the test suite and repository QA gates.
 
 ## Safety and artifacts
 

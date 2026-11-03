@@ -10,4 +10,4 @@ fi
 # Load extracted logic — all functions become available in this scope.
 source "$(dirname "${BASH_SOURCE[0]}")/shell-scripts/runpod.sh"
 
-echo "Registered: start-pod, stop-pod, comfy-batch <input-name>, flf <filepath>, runpod-comfy [-p <image-key>] -i <input1,..>, comfy -i <input1,..>"
+echo "Registered: start-pod, stop-pod, comfy-batch <input-name>, runpod-comfy [-p <image-key>] -i <input1,..>, comfy -i <input1,..>"
