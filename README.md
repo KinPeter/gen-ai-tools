@@ -1,6 +1,6 @@
-# Image generation AI tools
+# Generative AI tools
 
-This repo will hold several tools to interact with image generation AI.
+This repo will hold several tools to interact with local image generation and other generative AI.
 
 # Comfy Batch
 
