@@ -1,4 +1,11 @@
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -17,7 +24,9 @@ const png = await readFile(
 );
 const dirs = [];
 afterEach(async () =>
-  Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))),
+  Promise.all(
+    dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  ),
 );
 
 describe("output jobs", () => {
@@ -136,7 +145,9 @@ describe("output jobs", () => {
       const saved = [{ filename: "x.png", destDir: root }];
       expect(await readdir(root)).toHaveLength(1);
       await expect(cleanupOriginals(saved)).resolves.toBeUndefined();
-      await expect(rm(root, { recursive: true, force: true })).resolves.toBeUndefined();
+      await expect(
+        rm(root, { recursive: true, force: true }),
+      ).resolves.toBeUndefined();
     });
 
     it("keeps directory when other files remain", async () => {
@@ -148,7 +159,9 @@ describe("output jobs", () => {
       expect(await readdir(root)).toHaveLength(2);
       await expect(cleanupOriginals(saved)).resolves.toBeUndefined();
       expect(await readdir(root)).toHaveLength(1);
-      expect((await readFile(path.join(root, "keep.txt"))).toString()).toBe("x");
+      expect((await readFile(path.join(root, "keep.txt"))).toString()).toBe(
+        "x",
+      );
     });
 
     it("deduplicates files with the same path", async () => {

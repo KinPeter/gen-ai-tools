@@ -68,17 +68,11 @@ describe("runLookup", () => {
 
   it("calls findWithConnection with a full path input", async () => {
     const originalArgv = process.argv;
-    process.argv = [
-      "node",
-      "script.mjs",
-      "/some/path/to/image.jpg",
-    ];
+    process.argv = ["node", "script.mjs", "/some/path/to/image.jpg"];
 
     await runLookup();
 
-    expect(findWithConnection).toHaveBeenCalledWith(
-      "/some/path/to/image.jpg",
-    );
+    expect(findWithConnection).toHaveBeenCalledWith("/some/path/to/image.jpg");
     process.argv = originalArgv;
   });
 

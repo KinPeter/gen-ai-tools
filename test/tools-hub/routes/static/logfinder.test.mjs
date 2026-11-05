@@ -63,7 +63,9 @@ describe("logfinder", () => {
       expect(mockRes.writeHead).toHaveBeenCalledWith(200, {
         "Content-Type": "text/html; charset=utf-8",
       });
-      expect(mockRes.end).toHaveBeenCalledWith("<html><body>Log Finder</body></html>");
+      expect(mockRes.end).toHaveBeenCalledWith(
+        "<html><body>Log Finder</body></html>",
+      );
     });
 
     it("calls readFileSync with the UI_PATH", () => {

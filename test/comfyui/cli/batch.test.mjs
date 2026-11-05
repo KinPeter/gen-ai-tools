@@ -86,13 +86,13 @@ describe("batch orchestrator", () => {
     process.env.COMFY_KEEP_ORIGINALS = "false";
     vi.resetModules();
 
-    const { main: main2 } = await import(
-      "../../../comfyui/batch.mjs"
-    );
+    const { main: main2 } = await import("../../../comfyui/batch.mjs");
 
     mocks.queuePrompt.mockResolvedValue("prompt-1");
     mocks.waitForCompletion.mockResolvedValue({ status: {} });
-    mocks.saveOutputs.mockResolvedValue([{ filename: "x.png", destDir: "output" }]);
+    mocks.saveOutputs.mockResolvedValue([
+      { filename: "x.png", destDir: "output" },
+    ]);
     mocks.addToLog.mockResolvedValue([]);
     mocks.convertOutputs.mockResolvedValue(undefined);
     mocks.requestMemoryCleanup.mockResolvedValue(undefined);

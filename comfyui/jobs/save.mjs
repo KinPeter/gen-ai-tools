@@ -64,7 +64,9 @@ export async function cleanupOriginals(saved) {
       try {
         await rm(destDir, { recursive: true, force: true });
       } catch (err) {
-        console.error(`Could not delete empty directory ${destDir}: ${err.message}`);
+        console.error(
+          `Could not delete empty directory ${destDir}: ${err.message}`,
+        );
       }
     }
   }

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  resolveUp,
-  resolveRepoRoot,
-} from "../../../tools-hub/utils/path.mjs";
+import { resolveUp, resolveRepoRoot } from "../../../tools-hub/utils/path.mjs";
 
 describe("resolveUp", () => {
   it("returns the same path when levels is 0", () => {
