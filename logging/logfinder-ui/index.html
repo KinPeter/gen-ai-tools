@@ -190,7 +190,7 @@
       <pre id="result"></pre>
     </main>
     <script>
-      const LAMBDA_URL = "__LOG_FIND_LAMBDA_URL__";
+      const API_URL = "/api/logging/find-log";
 
       const input = document.getElementById("filename");
       const findButton = document.getElementById("find");
@@ -266,7 +266,7 @@
         resultEl.textContent = "";
         try {
           const response = await fetch(
-            LAMBDA_URL + "?filename=" + encodeURIComponent(key),
+            API_URL + "?filename=" + encodeURIComponent(key),
             { headers: { Accept: "application/json" } },
           );
           let data = null;

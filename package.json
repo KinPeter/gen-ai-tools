@@ -16,6 +16,8 @@
     "------------------ runpod --------------------": "",
     "start-pod": "node runpod/start-pod.mjs",
     "stop-pod": "node runpod/stop-pod.mjs",
+    "------------------ tools-hub -----------------": "",
+    "tools-hub": "node tools-hub/index.mjs",
     "------------------ logging -------------------": "",
     "build-find-ui": "node logging/build-find-ui.mjs",
     "deploy-find-lambda": "node logging/deploy-find-lambda.mjs",
