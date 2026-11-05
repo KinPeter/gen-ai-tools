@@ -75,6 +75,14 @@ Coverage gate: `npm run test:coverage` applies the 90% per-file line threshold t
 (`test/dist-browser/`, jsdom + `@testing-library/react`) but is deliberately not
 measured by that threshold.
 
+## Testing - writing tests
+
+Unless otherwise specified, when adding or modifying javascript files also write or update the related unit and integration tests.
+The tests are under the `test/` folder, mirroring the folder and file structure of the production code by default.
+
+_IMPORTANT_: Unit and integration tests must use mocks, stubs and spies for everything possible. Tests must never use real database connections, depend on or write/modify/delete files in the repo outside of the `test/` folder.
+For tests requiring file operations use OS temp folder e.g. with `mkdtemp()` and `os.tmpdir()`. Look for examples in the existing tests if needed.
+
 ## Code quality rules
 
 Every change and every review must uphold these principles. They apply to all
