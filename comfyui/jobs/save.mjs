@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fetchImage } from "./comfy.mjs";
 import { resolveDestDir } from "../utils/paths.mjs";
@@ -8,6 +8,7 @@ import { collectOutputImages } from "../utils/outputs.mjs";
 export async function saveOutputs({
   server,
   destBaseDir,
+  shouldKeepOriginals,
   input,
   historyEntry,
 }) {
@@ -30,11 +31,41 @@ export async function saveOutputs({
     const dest = path.join(destDir, filename);
     try {
       await writeFile(dest, await fetchImage(server, img));
-      console.log(`Saved: ${dest}`);
+      if (shouldKeepOriginals) console.log(`Saved: ${dest}`);
       saved.push({ filename, destDir });
     } catch (err) {
       console.error(`Could not save ${img.filename}: ${err.message}`);
     }
   }
   return saved;
+}
+
+export async function cleanupOriginals(saved) {
+  const seen = new Set();
+
+  for (const { destDir, filename } of saved) {
+    const original = path.join(destDir, filename);
+    const key = `${destDir}/${filename}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    try {
+      await rm(original, { force: true });
+    } catch (err) {
+      console.error(`Could not delete ${original}: ${err.message}`);
+    }
+  }
+
+  const emptyDirs = new Set();
+  for (const { destDir } of saved) {
+    if (emptyDirs.has(destDir)) continue;
+    const entries = await readdir(destDir);
+    if (entries.length === 0) {
+      emptyDirs.add(destDir);
+      try {
+        await rm(destDir, { recursive: true, force: true });
+      } catch (err) {
+        console.error(`Could not delete empty directory ${destDir}: ${err.message}`);
+      }
+    }
+  }
 }

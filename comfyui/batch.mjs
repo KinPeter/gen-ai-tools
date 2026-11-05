@@ -9,7 +9,7 @@ import {
   waitForCompletion,
   requestMemoryCleanup,
 } from "./jobs/comfy.mjs";
-import { saveOutputs } from "./jobs/save.mjs";
+import { cleanupOriginals, saveOutputs } from "./jobs/save.mjs";
 import { convertOutputs } from "./jobs/convert.mjs";
 import { addToLog, writeLog } from "./jobs/log.mjs";
 import { timestamp } from "./utils/naming.mjs";
@@ -17,6 +17,7 @@ import { getImageLogConnection } from "../logging/mongodb/client.mjs";
 
 const LOCAL_OUTPUT_PATH = path.join(import.meta.dirname, "..", "output");
 const LOCAL_DIST_PATH = path.join(import.meta.dirname, "..", "dist");
+const KEEP_ORIGINALS = process.env.COMFY_KEEP_ORIGINALS === "true";
 
 export async function runJob(
   job,
@@ -31,6 +32,7 @@ export async function runJob(
     const saved = await saveOutputs({
       server: config.server,
       destBaseDir: LOCAL_OUTPUT_PATH,
+      shouldKeepOriginals: KEEP_ORIGINALS,
       input: job.input,
       historyEntry,
     });
@@ -47,6 +49,9 @@ export async function runJob(
       outputBaseDir: LOCAL_OUTPUT_PATH,
       distBaseDir: LOCAL_DIST_PATH,
     });
+    if (!KEEP_ORIGINALS) {
+      await cleanupOriginals(saved);
+    }
     return true;
   } catch (err) {
     console.error(err.message);

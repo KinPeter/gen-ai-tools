@@ -1,10 +1,10 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "../../support/server.mjs";
-import { saveOutputs } from "../../../comfyui/jobs/save.mjs";
+import { saveOutputs, cleanupOriginals } from "../../../comfyui/jobs/save.mjs";
 import {
   convertAll,
   collectPngFiles,
@@ -17,7 +17,7 @@ const png = await readFile(
 );
 const dirs = [];
 afterEach(async () =>
-  Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true }))),
+  Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))),
 );
 
 describe("output jobs", () => {
@@ -112,5 +112,63 @@ describe("output jobs", () => {
     expect(
       await readFile(path.join(root, "other-jpg", "nested", "ok.jpg")),
     ).toBeTruthy();
+  });
+
+  describe("cleanupOriginals", () => {
+    it("deletes original files", async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), "cleanup-"));
+      dirs.push(root);
+      await writeFile(path.join(root, "a.png"), png);
+      await writeFile(path.join(root, "b.png"), png);
+      const saved = [
+        { filename: "a.png", destDir: root },
+        { filename: "b.png", destDir: root },
+      ];
+      await expect(cleanupOriginals(saved)).resolves.toBeUndefined();
+      const entries = await readdir(root).catch(() => []);
+      expect(entries).toHaveLength(0);
+    });
+
+    it("removes empty directory after deleting all files", async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), "cleanup-empty-"));
+      dirs.push(root);
+      await writeFile(path.join(root, "x.png"), png);
+      const saved = [{ filename: "x.png", destDir: root }];
+      expect(await readdir(root)).toHaveLength(1);
+      await expect(cleanupOriginals(saved)).resolves.toBeUndefined();
+      await expect(rm(root, { recursive: true, force: true })).resolves.toBeUndefined();
+    });
+
+    it("keeps directory when other files remain", async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), "cleanup-keep-"));
+      dirs.push(root);
+      await writeFile(path.join(root, "keep.txt"), "x");
+      await writeFile(path.join(root, "x.png"), png);
+      const saved = [{ filename: "x.png", destDir: root }];
+      expect(await readdir(root)).toHaveLength(2);
+      await expect(cleanupOriginals(saved)).resolves.toBeUndefined();
+      expect(await readdir(root)).toHaveLength(1);
+      expect((await readFile(path.join(root, "keep.txt"))).toString()).toBe("x");
+    });
+
+    it("deduplicates files with the same path", async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), "cleanup-dedup-"));
+      dirs.push(root);
+      await writeFile(path.join(root, "x.png"), png);
+      const saved = [
+        { filename: "x.png", destDir: root },
+        { filename: "x.png", destDir: root },
+      ];
+      await expect(cleanupOriginals(saved)).resolves.toBeUndefined();
+      const entries = await readdir(root).catch(() => []);
+      expect(entries).toHaveLength(0);
+    });
+
+    it("handles non-existent files gracefully", async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), "cleanup-missing-"));
+      dirs.push(root);
+      const saved = [{ filename: "missing.png", destDir: root }];
+      await expect(cleanupOriginals(saved)).resolves.toBeUndefined();
+    });
   });
 });
