@@ -16,17 +16,19 @@ describe("buildImageUrl", () => {
 
   it("returns encoded URL for normal path", () => {
     expect(buildImageUrl("folder/test.png")).toBe(
-      "/api/images/folder%2Ftest.png",
+      "/api/dist-browser/images/folder%2Ftest.png",
     );
   });
 
   it("encodes slashes in path", () => {
-    expect(buildImageUrl("a/b/c.png")).toBe("/api/images/a%2Fb%2Fc.png");
+    expect(buildImageUrl("a/b/c.png")).toBe(
+      "/api/dist-browser/images/a%2Fb%2Fc.png",
+    );
   });
 
   it("encodes spaces in path", () => {
     expect(buildImageUrl("path with spaces/img.png")).toBe(
-      "/api/images/path%20with%20spaces%2Fimg.png",
+      "/api/dist-browser/images/path%20with%20spaces%2Fimg.png",
     );
   });
 });

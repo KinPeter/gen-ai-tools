@@ -30,11 +30,12 @@ function apiResponse(body, status = 200) {
 }
 
 /**
- * Mock `/api/fs/<path>` and `/api/trash` against an in-memory listing so a
- * delete really removes the entry from the listing the app re-fetches.
+ * Mock `/api/dist-browser/fs/<path>` and `/api/dist-browser/trash` against an
+ * in-memory listing so a delete really removes the entry from the listing the
+ * app re-fetches.
  *
- * `/api/trash` answers like the tools-hub trash handler: HTTP 200 with
- * `{ ok, errors }`, per-path failures reported inside the body.
+ * `/api/dist-browser/trash` answers like the tools-hub trash handler: HTTP 200
+ * with `{ ok, errors }`, per-path failures reported inside the body.
  *
  * `trashResponse` overrides the trash reply (for HTTP failures),
  * `trashError` makes the trash request throw (for network failures),
@@ -57,23 +58,25 @@ function mockApi({
     .mockImplementation(async (url, options = {}) => {
       const requestUrl = String(url);
 
-      if (requestUrl.startsWith("/api/fs/")) {
+      if (requestUrl.startsWith("/api/dist-browser/fs/")) {
         state.fsCalls += 1;
         if (fsFailOnCall === state.fsCalls) {
           return apiResponse({ error: "Directory not found" }, 500);
         }
-        const path = decodeURIComponent(requestUrl.slice("/api/fs/".length));
+        const path = decodeURIComponent(
+          requestUrl.slice("/api/dist-browser/fs/".length),
+        );
         return apiResponse({ path, entries: state.listings[path] ?? [] });
       }
 
-      if (requestUrl === "/api/logs") {
+      if (requestUrl === "/api/dist-browser/logs") {
         return apiResponse({
           entries: logsEntries,
           fileCount: logsEntries.length,
         });
       }
 
-      if (requestUrl === "/api/trash") {
+      if (requestUrl === "/api/dist-browser/trash") {
         if (trashError) throw trashError;
         if (trashResponse) return trashResponse;
 
@@ -186,7 +189,7 @@ describe("Layout delete flow", () => {
 
     await selectImage(container, "img2.jpg");
 
-    expect(viewerSrc(container)).toBe("/api/images/img2.jpg");
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/img2.jpg");
     expect(container.querySelector(".image-viewer-empty")).toBeNull();
   });
 
@@ -196,7 +199,7 @@ describe("Layout delete flow", () => {
     });
 
     await selectImage(container, "img1.png");
-    expect(viewerSrc(container)).toBe("/api/images/img1.png");
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/img1.png");
 
     fireEvent.click(itemByName(container, "archive"));
 
@@ -218,12 +221,12 @@ describe("Layout delete flow", () => {
     });
 
     await selectImage(container, "img2.jpg");
-    expect(viewerSrc(container)).toBe("/api/images/img2.jpg");
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/img2.jpg");
 
     deleteSelected(container);
 
     await waitFor(() =>
-      expect(viewerSrc(container)).toBe("/api/images/img3.png"),
+      expect(viewerSrc(container)).toBe("/api/dist-browser/images/img3.png"),
     );
 
     // The trashed image is gone from the list and no longer displayed
@@ -240,8 +243,12 @@ describe("Layout delete flow", () => {
 
     // Refreshed listing after the trash call
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
-    expect(urls.filter((url) => url === "/api/trash")).toHaveLength(1);
-    expect(urls.filter((url) => url.startsWith("/api/fs/"))).toHaveLength(2);
+    expect(
+      urls.filter((url) => url === "/api/dist-browser/trash"),
+    ).toHaveLength(1);
+    expect(
+      urls.filter((url) => url.startsWith("/api/dist-browser/fs/")),
+    ).toHaveLength(2);
   });
 
   it("shows the previous image when the last image is deleted", async () => {
@@ -259,7 +266,7 @@ describe("Layout delete flow", () => {
     deleteSelected(container);
 
     await waitFor(() =>
-      expect(viewerSrc(container)).toBe("/api/images/img2.jpg"),
+      expect(viewerSrc(container)).toBe("/api/dist-browser/images/img2.jpg"),
     );
     expect(selectedItemNames(container)).toEqual(["img2.jpg"]);
     expect(itemByName(container, "img3.png")).toBeNull();
@@ -271,7 +278,7 @@ describe("Layout delete flow", () => {
     });
 
     await selectImage(container, "only.png");
-    expect(viewerSrc(container)).toBe("/api/images/only.png");
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/only.png");
 
     deleteSelected(container);
 
@@ -307,7 +314,7 @@ describe("Layout delete flow", () => {
     deleteSelected(container);
 
     await waitFor(() =>
-      expect(viewerSrc(container)).toBe("/api/images/img1.png"),
+      expect(viewerSrc(container)).toBe("/api/dist-browser/images/img1.png"),
     );
     expect(selectedItemNames(container)).toEqual(["img1.png"]);
     expect(itemByName(container, "archive")).toBeNull();
@@ -347,12 +354,12 @@ describe("Layout delete flow", () => {
     expect(container.querySelector(".file-browser-error").textContent).toBe(
       "Trash failed",
     );
-    expect(viewerSrc(container)).toBe("/api/images/img1.png");
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/img1.png");
     expect(container.querySelector(".image-viewer-empty")).toBeNull();
     // No listing refresh happens when the trash call fails
     expect(
       fetchMock.mock.calls.filter(([url]) =>
-        String(url).startsWith("/api/fs/"),
+        String(url).startsWith("/api/dist-browser/fs/"),
       ),
     ).toHaveLength(1);
   });
@@ -382,13 +389,13 @@ describe("Layout delete flow", () => {
       "Not found",
     );
     // Nothing was moved, so the viewer and the listing stay as they were
-    expect(viewerSrc(container)).toBe("/api/images/img1.png");
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/img1.png");
     expect(container.querySelector(".image-viewer-empty")).toBeNull();
     expect(itemByName(container, "img1.png")).toBeTruthy();
     // ...and the listing is not refreshed
     expect(
       fetchMock.mock.calls.filter(([url]) =>
-        String(url).startsWith("/api/fs/"),
+        String(url).startsWith("/api/dist-browser/fs/"),
       ),
     ).toHaveLength(1);
   });
@@ -411,7 +418,7 @@ describe("Layout delete flow", () => {
     expect(container.querySelector(".file-browser-error").textContent).toBe(
       "Failed to move item to trash",
     );
-    expect(viewerSrc(container)).toBe("/api/images/img1.png");
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/img1.png");
   });
 
   it("clears the viewer when the trash succeeds but the refresh fails", async () => {
@@ -451,12 +458,16 @@ describe("Layout delete flow", () => {
     await waitFor(() => expect(itemByName(container, "a.png")).toBeTruthy());
 
     await selectImage(container, "a.png");
-    expect(viewerSrc(container)).toBe("/api/images/subfolder%2Fa.png");
+    expect(viewerSrc(container)).toBe(
+      "/api/dist-browser/images/subfolder%2Fa.png",
+    );
 
     deleteSelected(container);
 
     await waitFor(() =>
-      expect(viewerSrc(container)).toBe("/api/images/subfolder%2Fb.png"),
+      expect(viewerSrc(container)).toBe(
+        "/api/dist-browser/images/subfolder%2Fb.png",
+      ),
     );
     expect(state.trashed).toEqual(["subfolder/a.png"]);
     expect(selectedItemNames(container)).toEqual(["b.png"]);
@@ -493,7 +504,7 @@ describe("Layout delete flow", () => {
     );
 
     await selectImage(container, "only.png");
-    expect(viewerSrc(container)).toBe("/api/images/only.png");
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/only.png");
 
     deleteSelected(container);
 
@@ -516,11 +527,11 @@ describe("Layout delete flow", () => {
     deleteSelected(container);
 
     await waitFor(() =>
-      expect(viewerSrc(container)).toBe("/api/images/img2.jpg"),
+      expect(viewerSrc(container)).toBe("/api/dist-browser/images/img2.jpg"),
     );
 
     const trashCalls = fetchMock.mock.calls.filter(
-      ([url]) => String(url) === "/api/trash",
+      ([url]) => String(url) === "/api/dist-browser/trash",
     );
     expect(trashCalls).toHaveLength(1);
     expect(JSON.parse(trashCalls[0][1].body).paths).toEqual(["img1.png"]);

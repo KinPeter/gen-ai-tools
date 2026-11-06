@@ -51,7 +51,7 @@ describe("ImageViewer", () => {
   // ── Rendering ──────────────────────────────────────────────────────────
 
   describe("rendering", () => {
-    it("renders an <img> with the correct /api/images/ src when imagePath is provided", () => {
+    it("renders an <img> with the /api/dist-browser/images/ src", () => {
       const { container } = renderImageViewer({
         imagePath: "folder/test.png",
         alt: "test.png",
@@ -59,7 +59,7 @@ describe("ImageViewer", () => {
       const img = container.querySelector("img");
       expect(img).toBeTruthy();
       expect(img.src).toBe(
-        `${window.location.origin}/api/images/folder%2Ftest.png`,
+        `${window.location.origin}/api/dist-browser/images/folder%2Ftest.png`,
       );
     });
 

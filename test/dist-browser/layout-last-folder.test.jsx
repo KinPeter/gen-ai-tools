@@ -32,18 +32,20 @@ const rootListing = {
 function mockApi(listings, statuses = {}) {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const requestUrl = String(url);
-    if (requestUrl === "/api/logs") {
+    if (requestUrl === "/api/dist-browser/logs") {
       return {
         ok: true,
         status: 200,
         json: async () => ({ entries: [], fileCount: 0 }),
       };
     }
-    if (!requestUrl.startsWith("/api/fs/")) {
+    if (!requestUrl.startsWith("/api/dist-browser/fs/")) {
       throw new Error(`Unexpected request: ${requestUrl}`);
     }
 
-    const path = decodeURIComponent(requestUrl.slice("/api/fs/".length));
+    const path = decodeURIComponent(
+      requestUrl.slice("/api/dist-browser/fs/".length),
+    );
 
     // Statuses the tools-hub handlers can return for a path that exists in the
     // mock but is rejected (403) or temporarily broken (500).
@@ -96,7 +98,7 @@ function itemByName(container, name) {
 function fetchedPaths(fetchMock) {
   return fetchMock.mock.calls
     .map(([url]) => String(url))
-    .filter((url) => url !== "/api/logs");
+    .filter((url) => url !== "/api/dist-browser/logs");
 }
 
 async function waitForRootListing(container) {
@@ -152,7 +154,10 @@ describe("Layout last visited folder", () => {
 
     await waitFor(() => expect(itemByName(container, "root.png")).toBeTruthy());
     expect(localStorage.getItem(LAST_FOLDER_KEY)).toBeNull();
-    expect(fetchedPaths(fetchMock)).toEqual(["/api/fs/random", "/api/fs/"]);
+    expect(fetchedPaths(fetchMock)).toEqual([
+      "/api/dist-browser/fs/random",
+      "/api/dist-browser/fs/",
+    ]);
   });
 
   it("removes the entry when the parent '..' is used from a nested folder", async () => {
@@ -179,7 +184,7 @@ describe("Layout last visited folder", () => {
     const { container, fetchMock } = renderLayout();
 
     await waitFor(() => expect(itemByName(container, "a.png")).toBeTruthy());
-    expect(fetchedPaths(fetchMock)[0]).toBe("/api/fs/random");
+    expect(fetchedPaths(fetchMock)[0]).toBe("/api/dist-browser/fs/random");
     expect(localStorage.getItem(LAST_FOLDER_KEY)).toBe("random");
   });
 
@@ -189,7 +194,9 @@ describe("Layout last visited folder", () => {
 
     await waitFor(() => expect(itemByName(container, "c.png")).toBeTruthy());
     // Layout URL-encodes the path, so the nested "/" becomes %2F
-    expect(fetchedPaths(fetchMock)[0]).toBe("/api/fs/archive%2F2024");
+    expect(fetchedPaths(fetchMock)[0]).toBe(
+      "/api/dist-browser/fs/archive%2F2024",
+    );
     expect(localStorage.getItem(LAST_FOLDER_KEY)).toBe("archive/2024");
   });
 
@@ -201,7 +208,7 @@ describe("Layout last visited folder", () => {
       const { container, fetchMock } = renderLayout();
       await waitForRootListing(container);
 
-      expect(fetchedPaths(fetchMock)[0]).toBe("/api/fs/");
+      expect(fetchedPaths(fetchMock)[0]).toBe("/api/dist-browser/fs/");
       expect(localStorage.getItem(LAST_FOLDER_KEY)).toBeNull();
       cleanup();
     }
@@ -213,8 +220,8 @@ describe("Layout last visited folder", () => {
 
     await waitFor(() => expect(itemByName(container, "random")).toBeTruthy());
     expect(fetchedPaths(fetchMock)).toEqual([
-      "/api/fs/deleted-folder",
-      "/api/fs/",
+      "/api/dist-browser/fs/deleted-folder",
+      "/api/dist-browser/fs/",
     ]);
     expect(localStorage.getItem(LAST_FOLDER_KEY)).toBeNull();
   });
@@ -224,7 +231,7 @@ describe("Layout last visited folder", () => {
     const { container, fetchMock } = renderLayout();
 
     await waitForRootListing(container);
-    expect(fetchedPaths(fetchMock)).toEqual(["/api/fs/"]);
+    expect(fetchedPaths(fetchMock)).toEqual(["/api/dist-browser/fs/"]);
     expect(localStorage.getItem(LAST_FOLDER_KEY)).toBeNull();
     expect(container.querySelector(".file-browser-error")).toBeNull();
   });
@@ -236,7 +243,10 @@ describe("Layout last visited folder", () => {
     });
 
     await waitForRootListing(container);
-    expect(fetchedPaths(fetchMock)).toEqual(["/api/fs/forbidden", "/api/fs/"]);
+    expect(fetchedPaths(fetchMock)).toEqual([
+      "/api/dist-browser/fs/forbidden",
+      "/api/dist-browser/fs/",
+    ]);
     expect(localStorage.getItem(LAST_FOLDER_KEY)).toBeNull();
   });
 
@@ -247,7 +257,7 @@ describe("Layout last visited folder", () => {
     await waitFor(() =>
       expect(container.querySelector(".file-browser-error")).toBeTruthy(),
     );
-    expect(fetchedPaths(fetchMock)).toEqual(["/api/fs/random"]);
+    expect(fetchedPaths(fetchMock)).toEqual(["/api/dist-browser/fs/random"]);
     expect(localStorage.getItem(LAST_FOLDER_KEY)).toBe("random");
   });
 
@@ -317,7 +327,9 @@ describe("Layout last visited folder", () => {
     // Neither load falls back to the dist root: every listing request targets
     // the restored folder.
     expect(
-      fetchedPaths(second.fetchMock).filter((url) => url === "/api/fs/"),
+      fetchedPaths(second.fetchMock).filter(
+        (url) => url === "/api/dist-browser/fs/",
+      ),
     ).toHaveLength(0);
   });
 });
