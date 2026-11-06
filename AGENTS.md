@@ -12,9 +12,7 @@ message.
 - Every generated workflow artifact belongs under `.tmp/` and must include a
   unique UTC timestamp with seconds in its filename; never use a fixed review
   filename.
-- OpenCode definitions live under `.opencode/`; Claude Code mirrors live under
-  `.claude/`. Keep both trees synchronized whenever agents, skills, commands,
-  or workflow behavior changes. `CLAUDE.md` points back to this file.
+- OpenCode definitions live under `.opencode/`. `CLAUDE.md` points back to this file.
 
 Node 24, ESM (`"type": "module"`, top-level await). Vitest (`vitest.config.mjs`, tests under `test/`); no typecheck or CI.
 
@@ -45,17 +43,18 @@ npm install
 
 ## Repo layout
 
-| Directory            | Purpose                                                                             |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| `comfyui/`           | ComfyUI inference — workflow building, job execution, output handling, log writing. |
-| `runpod/`            | RunPod GPU pod lifecycle — create, wait, stop, terminate.                           |
-| `logging/`           | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.  |
-| `dist-browser/`      | Vite + React browser UI for serving `dist/` outputs.                                |
-| `test/`              | Vitest unit and E2E golden-file tests (mirrors source structure).                   |
-| `comfyui/workflows/` | Base workflow JSON templates (used by the workflow builder).                        |
-| `comfyui/inputs/`    | Input YAML definitions (prompt sets, LoRA chains, seeds).                           |
-| `dist/`              | Generated JPG outputs (mirrors `output/` subfolders).                               |
-| `output/`            | Raw PNG outputs + run logs. All gitignored.                                         |
+| Directory            | Purpose                                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------------- |
+| `comfyui/`           | ComfyUI inference — workflow building, job execution, output handling, log writing.                  |
+| `runpod/`            | RunPod GPU pod lifecycle — create, wait, stop, terminate.                                            |
+| `logging/`           | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.                   |
+| `tools-hub/`         | Local Node HTTP server for static UIs and API routes (serves the dist-browser UI at `/distbrowser`). |
+| `dist-browser/`      | Vite + React browser UI for serving `dist/` outputs.                                                 |
+| `test/`              | Vitest unit and E2E golden-file tests (mirrors source structure).                                    |
+| `comfyui/workflows/` | Base workflow JSON templates (used by the workflow builder).                                         |
+| `comfyui/inputs/`    | Input YAML definitions (prompt sets, LoRA chains, seeds).                                            |
+| `dist/`              | Generated JPG outputs (mirrors `output/` subfolders).                                                |
+| `output/`            | Raw PNG outputs + run logs. All gitignored.                                                          |
 
 Each module directory has its own `AGENTS.md` with detailed conventions. Scripts are defined in `package.json` — use `npm run <script>` to invoke them.
 
@@ -70,18 +69,8 @@ npm run lint
 npm run format:check
 ```
 
-Coverage gate: `npm run test:coverage` applies the 90% per-file line threshold to
-`comfyui/`, `runpod/` and `logging/` only. `dist-browser/**` is unit-tested
-(`test/dist-browser/`, jsdom + `@testing-library/react`) but is deliberately not
-measured by that threshold.
-
-## Testing - writing tests
-
-Unless otherwise specified, when adding or modifying javascript files also write or update the related unit and integration tests.
-The tests are under the `test/` folder, mirroring the folder and file structure of the production code by default.
-
-_IMPORTANT_: Unit and integration tests must use mocks, stubs and spies for everything possible. Tests must never use real database connections, depend on or write/modify/delete files in the repo outside of the `test/` folder.
-For tests requiring file operations use OS temp folder e.g. with `mkdtemp()` and `os.tmpdir()`. Look for examples in the existing tests if needed.
+Unless explicitly asked in your instructions, do not write or update tests
+during implementation.
 
 ## Code quality rules
 

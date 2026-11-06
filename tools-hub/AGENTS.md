@@ -47,6 +47,24 @@ it returns a new `{ testUrl, serve }` pair so routes can carry their own state
 Static UIs are mounted at clean paths without a `/static/` prefix. The route
 registry is created once at server start and cached.
 
+The `distbrowser` route serves the Vite build output found in
+`dist-browser/dist/` at `/distbrowser`, including assets and an SPA fallback to
+`index.html` for unknown sub-paths. Its Vite `base` is `/distbrowser/` (defined
+in `tools-hub/utils/constants.mjs`) so built asset URLs match the mount path.
+The fallback applies only to genuine "not found" requests: traversal attempts
+return 403 and read failures return 500 instead of being masked by
+`index.html`. Only `GET` and `HEAD` are served; other methods return 405. When
+the UI has not been built the route answers 404 with a hint on how to build it.
+
+The directory of the build output comes from `uiPaths()` in
+`utils/path.mjs`; `createStaticRoutes({ uiDistDir })` (and
+`createServerInstance(options)`) can override it, which is what the tests use
+to point the route at a temporary fixture.
+
+MIME types for every static response come from one shared map in
+`utils/file.mjs` (`getContentType`), which includes `svg`, `webp`, `gif`,
+`txt`, `mjs` and `woff2` and adds `; charset=utf-8` to text types.
+
 ### API routes
 
 API routes follow the same `{ testUrl, serve }` interface but handle structured
@@ -81,11 +99,22 @@ The server is started by `index.mjs` which:
 
 1. Loads `.env` (dotenv/config, top-level).
 2. Reads `TOOLS_HUB_PORT` env var (default 4218).
-3. Calls `start(port)` which creates the server instance and listens.
-4. Installs `SIGINT` and `SIGTERM` handlers that gracefully stop the server.
+3. Builds the dist-browser React app with Vite (`ui-build.mjs`) unless
+   `TOOLS_HUB_SKIP_UI_BUILD` is set to `1`/`true`/`yes`. A failing build is
+   logged, not thrown, so existing artifacts are still served.
+4. Calls `start(port)` which creates the server instance and listens.
+5. Installs `SIGINT` and `SIGTERM` handlers that gracefully stop the server.
 
 The `start()` function returns a `stop()` function for clean shutdown. The
 server process terminates cleanly when both handlers fire.
+
+### UI build
+
+`ui-build.mjs` is the only place that talks to Vite: it calls `build()`
+programmatically with `dist-browser/` as the root and writes to
+`dist-browser/dist/`. Vite is imported lazily so tools-hub keeps zero runtime
+dependencies (Vite stays a devDependency). Set `TOOLS_HUB_SKIP_UI_BUILD=1` for
+fast restarts when the frontend has not changed.
 
 ### Port configuration
 

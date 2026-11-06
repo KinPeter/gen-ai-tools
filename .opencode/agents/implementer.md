@@ -1,5 +1,5 @@
 ---
-description: Implements a requirement or bug fix with tests and repository QA
+description: Implements a requirement or bug fix with repository QA
 mode: subagent
 permissions:
   - action: shell
@@ -29,13 +29,12 @@ file, read that file completely and use it as the source of truth. Inspect the
 existing code and acceptance criteria before editing.
 
 Implement the smallest coherent change that satisfies every acceptance
-criterion. Preserve existing user work. Add or update tests covering changed
-behavior when relevant test infrastructure exists; if this repository has no
-test suite, do not invent a false result—add practical tests only when the
-task warrants introducing them and report any remaining limitation.
+criterion. Preserve existing user work. Do not overthink and do not implement
+anything that was not requested by the user or wasn't in the requirements.
+
+Escalate your questions if anything functional decision is unclear.
 
 Before reporting completion, run the repository-required `npm run lint` and
-`npm run format:check`, plus the relevant test command when available. Do not
-commit, reset, checkout, stash, or discard changes. Report files changed,
-acceptance criteria, tests, QA results, and unresolved risks to the
+`npm run format:check`. Do not commit, reset, checkout, stash, or discard changes.
+Report files changed, acceptance criteria, QA results, and unresolved risks to the
 orchestrator.
