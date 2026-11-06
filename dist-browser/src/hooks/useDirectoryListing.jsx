@@ -45,7 +45,9 @@ export function useDirectoryListing(currentPath, navigateTo, onListingLoaded) {
       setError(null);
 
       try {
-        const url = path ? `/api/fs/${encodeURIComponent(path)}` : "/api/fs/";
+        const url = path
+          ? `/api/dist-browser/fs/${encodeURIComponent(path)}`
+          : "/api/dist-browser/fs/";
         const response = await fetch(url, {
           signal: controller.signal,
         });

@@ -19,7 +19,7 @@ import { ThemeProvider } from "../../dist-browser/src/context/ThemeContext.jsx";
 const folder = (name) => ({ name, type: "folder", ext: "" });
 const image = (name) => ({ name, type: "file", ext: name.split(".").pop() });
 
-// --- API mock (mirrors dist-browser/server.mjs responses) ---
+// --- API mock (mirrors the tools-hub dist-browser API responses) ---
 
 function apiResponse(body, status = 200) {
   return {
@@ -33,14 +33,14 @@ function apiResponse(body, status = 200) {
  * Mock `/api/fs/<path>` and `/api/trash` against an in-memory listing so a
  * delete really removes the entry from the listing the app re-fetches.
  *
- * `/api/trash` answers exactly like dist-browser/server.mjs: HTTP 200 with
+ * `/api/trash` answers like the tools-hub trash handler: HTTP 200 with
  * `{ ok, errors }`, per-path failures reported inside the body.
  *
  * `trashResponse` overrides the trash reply (for HTTP failures),
  * `trashError` makes the trash request throw (for network failures),
  * `fsFailOnCall` fails the Nth (1-based) directory listing request, and
  * `serverCreatesTrash` makes the root listing contain the `.trash` folder the
- * real server creates on the first trash call.
+ * tools-hub trash handler creates on the first trash call.
  */
 function mockApi({
   listings,
@@ -358,7 +358,7 @@ describe("Layout delete flow", () => {
   });
 
   it("treats a per-path failure inside the 200 trash body as an error", async () => {
-    // server.mjs always answers 200; failures live in the body
+    // handleTrash always answers 200; failures live in the body
     const { container, fetchMock } = renderLayout(
       { "": [image("img1.png"), image("img2.jpg")] },
       {

@@ -5,7 +5,7 @@ import {
 } from "../../dist-browser/src/utils/is-image.mjs";
 
 describe("isImageFile", () => {
-  it("accepts every extension the server serves", () => {
+  it("accepts every extension the tools-hub fs handler lists", () => {
     for (const ext of IMAGE_EXTENSIONS) {
       expect(isImageFile({ name: `photo.${ext}`, type: "file", ext })).toBe(
         true,

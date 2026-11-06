@@ -675,15 +675,15 @@ describe("getContentType", () => {
   });
 
   it("returns text/html for .html files", () => {
-    expect(getContentType("page.html")).toBe("text/html");
+    expect(getContentType("page.html")).toBe("text/html; charset=utf-8");
   });
 
   it("returns text/css for .css files", () => {
-    expect(getContentType("style.css")).toBe("text/css");
+    expect(getContentType("style.css")).toBe("text/css; charset=utf-8");
   });
 
   it("returns application/json for .json files", () => {
-    expect(getContentType("data.json")).toBe("application/json");
+    expect(getContentType("data.json")).toBe("application/json; charset=utf-8");
   });
 
   it("returns image/x-icon for .ico files", () => {
@@ -691,7 +691,9 @@ describe("getContentType", () => {
   });
 
   it("returns application/javascript for .js files", () => {
-    expect(getContentType("app.js")).toBe("application/javascript");
+    expect(getContentType("app.js")).toBe(
+      "application/javascript; charset=utf-8",
+    );
   });
 });
 

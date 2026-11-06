@@ -1,6 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
+import {
+  DIST_BROWSER_UI_DIST_DIR,
+  DIST_BROWSER_UI_SOURCE_DIR,
+} from "./constants.mjs";
+
 /**
  * Walk up `levels` directories from a file or directory path.
  */
@@ -20,6 +25,17 @@ export function resolveUp(file, levels) {
  */
 export function resolveRepoRoot(relPath) {
   const __filename = fileURLToPath(import.meta.url);
-  const repoRoot = resolveUp(__filename, 2);
+  const repoRoot = resolveUp(__filename, 3);
   return resolve(repoRoot, relPath);
+}
+
+/**
+ * Absolute paths of the dist-browser React app and its Vite build output.
+ * Single source of truth for the UI source and dist directories.
+ */
+export function distBrowserUiPaths() {
+  return {
+    root: resolveRepoRoot(DIST_BROWSER_UI_SOURCE_DIR),
+    distDir: resolveRepoRoot(DIST_BROWSER_UI_DIST_DIR),
+  };
 }

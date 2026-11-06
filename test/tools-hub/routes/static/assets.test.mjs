@@ -10,17 +10,25 @@ vi.mock("node:url", () => ({
   fileURLToPath: vi.fn(() => "/tools-hub/routes/static/assets/index.mjs"),
 }));
 
-vi.mock("node:path", () => ({
-  dirname: (p) => p.split("/").slice(0, -1).join("/") || "/",
-  resolve: (root, rel) => `${root}/${rel}`,
-  extname: (filename) => {
-    const dot = filename.lastIndexOf(".");
-    return dot > -1 ? filename.substring(dot) : "";
-  },
-  basename: (p) => (p || "").split("/").pop(),
-}));
+vi.mock("node:path", () => {
+  const mockedPath = {
+    dirname: (p) => p.split("/").slice(0, -1).join("/") || "/",
+    resolve: (root, rel) => `${root}/${rel}`,
+    extname: (filename) => {
+      const dot = filename.lastIndexOf(".");
+      return dot > -1 ? filename.substring(dot) : "";
+    },
+    basename: (p) => (p || "").split("/").pop(),
+  };
 
-vi.mock("tools-hub/utils/index.mjs", () => ({ resolveUp: () => "/repo-root" }));
+  return { ...mockedPath, default: mockedPath };
+});
+
+vi.mock("tools-hub/utils/index.mjs", async (importOriginal) => {
+  const actual = await importOriginal();
+
+  return { ...actual, resolveUp: () => "/repo-root" };
+});
 
 import assetsFactory from "../../../../tools-hub/routes/static/assets/index.mjs";
 

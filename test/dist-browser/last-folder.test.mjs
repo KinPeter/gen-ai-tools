@@ -45,14 +45,14 @@ describe("normalizeFolderPath", () => {
     expect(normalizeFolderPath("archive\\2024\\")).toBe("archive/2024");
   });
 
-  it("drops traversal segments instead of sending them to the server", () => {
-    // A corrupt or tampered storage value must never reach /api/fs as an
-    // escape attempt: the server answers 403 and the UI would be stuck.
+  it("drops traversal segments instead of sending them to the API", () => {
+    // A corrupt or tampered storage value must never reach the fs endpoint as
+    // an escape attempt: tools-hub answers 403 and the UI would be stuck.
     expect(normalizeFolderPath("..")).toBe("");
     expect(normalizeFolderPath("../..")).toBe("");
     expect(normalizeFolderPath("./..")).toBe("");
     expect(normalizeFolderPath("..\\..")).toBe("");
-    expect(normalizeFolderPath("a/../b")).toBe("b"); // same as the server's path.resolve
+    expect(normalizeFolderPath("a/../b")).toBe("b"); // matches handleFS path.resolve
     expect(normalizeFolderPath("random/../..")).toBe("");
     expect(normalizeFolderPath("random/..")).toBe("");
     expect(normalizeFolderPath("./random")).toBe("random");

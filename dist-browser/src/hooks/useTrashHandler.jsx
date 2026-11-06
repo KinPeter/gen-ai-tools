@@ -49,7 +49,7 @@ export function useTrashHandler({
 
       deletingRef.current = true;
       try {
-        const response = await fetch("/api/trash", {
+        const response = await fetch("/api/dist-browser/trash", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

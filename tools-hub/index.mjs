@@ -1,15 +1,16 @@
 import "dotenv/config";
 
-import { fileURLToPath } from "node:url";
-
 import { start } from "./server.mjs";
-
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
+import { buildDistBrowserUi } from "./routes/static/distbrowser/ui-build.mjs";
 
 const PORT = Number(process.env.TOOLS_HUB_PORT) || 4218;
 
 async function main() {
-  const stop = await start(PORT, __dirname);
+  // Build the dist-browser React app before listening. buildDistBrowserUi() never
+  // throws: a failed build only logs, so existing artifacts still serve.
+  await buildDistBrowserUi();
+
+  const stop = await start(PORT);
 
   process.on("SIGINT", async () => {
     await stop();

@@ -13,7 +13,7 @@ export function useLogEntries(refreshTrigger = 0) {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/logs");
+      const res = await fetch("/api/dist-browser/logs");
       const data = await res.json();
       setEntries(data.entries ?? []);
     } catch {

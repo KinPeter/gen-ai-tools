@@ -99,7 +99,8 @@ The server is started by `index.mjs` which:
 
 1. Loads `.env` (dotenv/config, top-level).
 2. Reads `TOOLS_HUB_PORT` env var (default 4218).
-3. Builds the dist-browser React app with Vite (`ui-build.mjs`) unless
+3. Builds the dist-browser React app with Vite
+   (`routes/static/distbrowser/ui-build.mjs`) unless
    `TOOLS_HUB_SKIP_UI_BUILD` is set to `1`/`true`/`yes`. A failing build is
    logged, not thrown, so existing artifacts are still served.
 4. Calls `start(port)` which creates the server instance and listens.
@@ -110,9 +111,10 @@ server process terminates cleanly when both handlers fire.
 
 ### UI build
 
-`ui-build.mjs` is the only place that talks to Vite: it calls `build()`
-programmatically with `dist-browser/` as the root and writes to
-`dist-browser/dist/`. Vite is imported lazily so tools-hub keeps zero runtime
+`routes/static/distbrowser/ui-build.mjs` is the only place that talks to Vite:
+it calls `build()` programmatically with `dist-browser/` as the root and writes
+to `dist-browser/dist/`. It sits next to the `distbrowser` route because both
+belong to that UI. Vite is imported lazily so tools-hub keeps zero runtime
 dependencies (Vite stays a devDependency). Set `TOOLS_HUB_SKIP_UI_BUILD=1` for
 fast restarts when the frontend has not changed.
 

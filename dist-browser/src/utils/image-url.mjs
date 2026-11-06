@@ -6,5 +6,5 @@
  */
 export function buildImageUrl(imagePath) {
   if (!imagePath) return null;
-  return `/api/images/${encodeURIComponent(imagePath)}`;
+  return `/api/dist-browser/images/${encodeURIComponent(imagePath)}`;
 }

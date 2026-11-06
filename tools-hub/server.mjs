@@ -8,9 +8,11 @@ import apiRoutes from "./routes/api/index.mjs";
  *
  * Static UI routes are mounted under /static/<name>/
  * API routes are mounted under /api/<module>.
+ *
+ * @param {object} [options] - passed to createStaticRoutes, e.g. distBrowserUiDistDir
  */
-export function createServerInstance() {
-  const staticRoutes = createStaticRoutes();
+export function createServerInstance(options = {}) {
+  const staticRoutes = createStaticRoutes(options);
   const allRoutes = [...staticRoutes];
 
   return createServer((req, res) => {

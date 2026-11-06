@@ -39,7 +39,7 @@ describe("createStaticRoutes", () => {
   it("returns an array of route objects", () => {
     const routes = createStaticRoutes();
     expect(Array.isArray(routes)).toBe(true);
-    expect(routes.length).toBe(2);
+    expect(routes.length).toBe(3);
     expect(typeof routes[0].testUrl).toBe("function");
     expect(typeof routes[0].serve).toBe("function");
   });

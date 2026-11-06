@@ -1,38 +1,11 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { basename, extname, resolve } from "node:path";
+import { basename, resolve } from "node:path";
 
-import { resolveUp } from "../../../utils/index.mjs";
+import { getContentType, resolveUp } from "../../../utils/index.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolveUp(__filename, 5);
-
-/**
- * MIME type map keyed by file extension.
- */
-const MIME_TYPES = {
-  ".ico": "image/x-icon",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".svg": "image/svg+xml",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".css": "text/css",
-  ".js": "application/javascript",
-  ".html": "text/html; charset=utf-8",
-  ".json": "application/json",
-};
-
-const DEFAULT_MIME = "application/octet-stream";
-
-/**
- * Detect the MIME type for a file based on its extension.
- */
-function detectMimeType(filename) {
-  const ext = extname(filename).toLowerCase();
-  return MIME_TYPES[ext] || DEFAULT_MIME;
-}
 
 /**
  * Parse the URL path after `/assets/` and resolve to a file path.
@@ -76,7 +49,7 @@ function serve(req, res) {
 
   try {
     const data = readFileSync(filePath);
-    const mime = detectMimeType(basename(filePath));
+    const mime = getContentType(basename(filePath));
 
     res.writeHead(200, { "Content-Type": mime });
     res.end(data);

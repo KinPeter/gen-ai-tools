@@ -10,7 +10,6 @@
     "------------------ comfyui -------------------": "",
     "comfy-batch": "node comfyui/batch.mjs",
     "convert-all": "node comfyui/jobs/convert.mjs",
-    "dist-browser": "node dist-browser/serve.mjs",
     "dist-browser:build": "vite build --config dist-browser/vite.config.mjs",
     "dist-browser:dev": "vite --config dist-browser/vite.config.mjs",
     "------------------ tools-hub -----------------": "",

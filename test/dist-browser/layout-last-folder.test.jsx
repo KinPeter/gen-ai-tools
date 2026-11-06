@@ -27,7 +27,7 @@ const rootListing = {
   "archive/2024": [image("c.png")],
 };
 
-// --- API mock (mirrors dist-browser/server.mjs responses) ---
+// --- API mock (mirrors the tools-hub dist-browser API responses) ---
 
 function mockApi(listings, statuses = {}) {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
@@ -45,8 +45,8 @@ function mockApi(listings, statuses = {}) {
 
     const path = decodeURIComponent(requestUrl.slice("/api/fs/".length));
 
-    // Statuses the real server can return for a path that exists in the mock
-    // but is rejected (403) or temporarily broken (500).
+    // Statuses the tools-hub handlers can return for a path that exists in the
+    // mock but is rejected (403) or temporarily broken (500).
     if (path in statuses) {
       const status = statuses[path];
       return {
