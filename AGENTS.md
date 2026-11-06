@@ -14,6 +14,16 @@ message.
   filename.
 - OpenCode definitions live under `.opencode/`. `CLAUDE.md` points back to this file.
 
+## Testing workflow
+
+Use `/tests <scope or instruction>` to run the testing pipeline after
+implementation: `test-writer` writes or updates tests, `test-reviewer` runs the
+suite and writes a timestamped report under `.tmp/`, and `test-fixer` resolves
+the report's test-side findings. All phases load the `testing-standards` skill
+(`.opencode/skills/testing-standards/SKILL.md`). Testing phases never edit
+production code; suspected implementation bugs are escalated to the user.
+`vitest.config.mjs` is changed only when the user explicitly authorises it.
+
 Node 24, ESM (`"type": "module"`, top-level await). Vitest (`vitest.config.mjs`, tests under `test/`); no typecheck or CI.
 
 ## Image helper agents (OpenCode)
