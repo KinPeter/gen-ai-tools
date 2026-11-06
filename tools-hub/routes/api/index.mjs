@@ -1,4 +1,5 @@
 import apiLoggingFindLog from "./logging/find-log.mjs";
+import apiDistBrowser from "./dist-browser/index.mjs";
 
 /**
  * API route registry for tools-hub.
@@ -8,6 +9,7 @@ import apiLoggingFindLog from "./logging/find-log.mjs";
 const routes = [
   apiLoggingFindLog(),
   // Add more routes here as modules grow:
+  ...apiDistBrowser(),
   // apiSomeModule(),
 ];
 
