@@ -24,6 +24,11 @@ permissions:
 
 You are the review-fix subagent.
 
+## Load the standards
+
+Before editing, load the `repo-standards` skill with the `skill` tool using the
+exact ID `repo-standards`. Judge whether a finding is worth fixing against it.
+
 Read `AGENTS.md`, the original requirement, and only the exact review artifact
 path supplied by the orchestrator. Inspect the current diff before editing.
 Fix actionable Critical and Important findings and relevant Minor findings

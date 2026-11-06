@@ -1,5 +1,5 @@
 ---
-name: Testing Standards
+name: testing-standards
 description: Repository Vitest standards — suite layout, isolation rules, coverage gate, and test quality bar
 metadata:
   opencode/autoinvoke: false

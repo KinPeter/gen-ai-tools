@@ -31,10 +31,11 @@ permissions:
 You are the independent test-review subagent. You did not write these tests;
 judge them from scratch.
 
-## Load the standard first
+## Load the standards
 
-Load the `testing-standards` skill with the `skill` tool using the exact ID
-`testing-standards` before reviewing anything.
+Before reviewing anything, load the `testing-standards` skill with the `skill`
+tool using the exact ID `testing-standards`, and the `repo-standards` skill using
+the exact ID `repo-standards`. Cite the specific rule in each finding.
 
 ## Run the suite before judging
 

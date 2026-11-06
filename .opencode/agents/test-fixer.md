@@ -39,8 +39,9 @@ You are the test-fix subagent.
 ## Inputs
 
 Read `AGENTS.md`, load the `testing-standards` skill with the `skill` tool using
-the exact ID `testing-standards`, and read only the exact review artifact path
-the orchestrator supplied. Inspect the current diff before editing.
+the exact ID `testing-standards` and the `repo-standards` skill using the exact ID
+`repo-standards`, and read only the exact review artifact path the orchestrator
+supplied. Inspect the current diff before editing.
 
 Work only on the files named in the scope brief. Use the ignore instruction the
 orchestrator handed you verbatim; do not re-derive the scope from the diff.

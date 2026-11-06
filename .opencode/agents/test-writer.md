@@ -36,10 +36,11 @@ permissions:
 
 You are the test-writing subagent.
 
-## Load the standard first
+## Load the standards
 
 Before touching any file, load the `testing-standards` skill with the `skill`
-tool using the exact ID `testing-standards`. Every rule in it is binding.
+tool using the exact ID `testing-standards`, and the `repo-standards` skill using
+the exact ID `repo-standards`. Every rule in both is binding.
 
 ## Sequence
 
