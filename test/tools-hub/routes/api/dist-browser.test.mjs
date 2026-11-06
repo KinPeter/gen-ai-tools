@@ -18,13 +18,14 @@ import {
   handleImages,
   handleTrash,
   handleLogs,
+} from "../../../../tools-hub/routes/api/dist-browser/handlers/index.mjs";
+import {
   normalizePathSegment,
   resolveBase,
   getContentType,
-  parseBody,
-  sendJSON,
-  sendError,
-} from "../../../../tools-hub/routes/api/dist-browser/handlers.mjs";
+} from "../../../../tools-hub/utils/file.mjs";
+import { sendJSON, sendError } from "../../../../tools-hub/utils/http.mjs";
+import { parseBody } from "../../../../tools-hub/utils/request.mjs";
 
 // --- Helpers ---
 

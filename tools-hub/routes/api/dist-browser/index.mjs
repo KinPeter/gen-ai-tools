@@ -6,7 +6,7 @@ import {
   handleImages,
   handleTrash,
   handleLogs,
-} from "./handlers.mjs";
+} from "./handlers/index.mjs";
 
 /**
  * Resolve the repository root by walking up from this file to the tools-hub
