@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import { resolveUp } from "../../utils/path.mjs";
+import { resolveUp } from "../../utils/index.mjs";
 
 import assets from "./assets/index.mjs";
 import logfinder from "./logfinder/index.mjs";

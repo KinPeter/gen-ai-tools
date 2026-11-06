@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { sendJSON } from "../../../../utils/http.mjs";
+import { sendJSON } from "../../../../utils/index.mjs";
 
 /**
  * GET handler for /api/dist-browser/logs

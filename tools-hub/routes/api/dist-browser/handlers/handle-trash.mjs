@@ -1,8 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { normalizePathSegment, resolveBase } from "../../../../utils/file.mjs";
-import { sendError, sendJSON } from "../../../../utils/http.mjs";
-import { parseBody } from "../../../../utils/request.mjs";
+import {
+  normalizePathSegment,
+  parseBody,
+  resolveBase,
+  sendError,
+  sendJSON,
+} from "../../../../utils/index.mjs";
 
 /**
  * POST handler for /api/dist-browser/trash

@@ -20,7 +20,7 @@ vi.mock("node:path", () => ({
   basename: (p) => (p || "").split("/").pop(),
 }));
 
-vi.mock("tools-hub/utils/path.mjs", () => ({ resolveUp: () => "/repo-root" }));
+vi.mock("tools-hub/utils/index.mjs", () => ({ resolveUp: () => "/repo-root" }));
 
 import assetsFactory from "../../../../tools-hub/routes/static/assets/index.mjs";
 

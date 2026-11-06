@@ -12,7 +12,7 @@ vi.mock("node:path", () => ({
   resolve: (root, rel) => `${root}/${rel}`,
 }));
 
-vi.mock("tools-hub/utils/path.mjs", () => ({ resolveUp: () => "/repo-root" }));
+vi.mock("tools-hub/utils/index.mjs", () => ({ resolveUp: () => "/repo-root" }));
 
 import logfinderFactory from "../../../../tools-hub/routes/static/logfinder/index.mjs";
 

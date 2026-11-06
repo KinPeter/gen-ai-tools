@@ -67,6 +67,14 @@ parent directories from a file path. This replaces deeply nested `dirname()`
 calls and makes it easy to resolve paths relative to the repository root from
 any depth. A convenience `resolveRepoRoot()` is also available.
 
+### Shared utils
+
+Shared helpers live in `utils/` (one file per concern: `path.mjs`, `file.mjs`,
+`http.mjs`, `request.mjs`, `constants.mjs`). `utils/index.mjs` is the single
+export surface: every consumer inside `tools-hub/` imports from that barrel
+rather than from a specific util file. Add new helpers to their own module and
+re-export them from `index.mjs`.
+
 ### Lifecycle
 
 The server is started by `index.mjs` which:

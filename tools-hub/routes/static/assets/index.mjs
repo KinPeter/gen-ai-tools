@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, extname, resolve } from "node:path";
 
-import { resolveUp } from "../../../utils/path.mjs";
+import { resolveUp } from "../../../utils/index.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolveUp(__filename, 5);

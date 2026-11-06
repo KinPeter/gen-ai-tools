@@ -1,4 +1,4 @@
-export { handleFS } from "./handleFS.mjs";
-export { handleImages } from "./handleImages.mjs";
-export { handleTrash } from "./handleTrash.mjs";
-export { handleLogs } from "./handleLogs.mjs";
+export { handleFS } from "./handle-fs.mjs";
+export { handleImages } from "./handle-images.mjs";
+export { handleLogs } from "./handle-logs.mjs";
+export { handleTrash } from "./handle-trash.mjs";

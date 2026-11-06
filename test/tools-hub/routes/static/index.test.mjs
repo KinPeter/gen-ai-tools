@@ -4,7 +4,7 @@ vi.mock("node:url", () => ({
   fileURLToPath: vi.fn((url) => "/mock" + (url.pathname || "")),
 }));
 
-vi.mock("tools-hub/utils/path.mjs", async (importOriginal) => {
+vi.mock("tools-hub/utils/index.mjs", async (importOriginal) => {
   const actual = await importOriginal();
   return { ...actual, resolveUp: vi.fn(actual.resolveUp) };
 });

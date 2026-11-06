@@ -1,8 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { IMAGE_EXTENSIONS } from "../../../../utils/constants.mjs";
-import { normalizePathSegment, resolveBase } from "../../../../utils/file.mjs";
-import { sendError, sendJSON } from "../../../../utils/http.mjs";
+import {
+  IMAGE_EXTENSIONS,
+  normalizePathSegment,
+  resolveBase,
+  sendError,
+  sendJSON,
+} from "../../../../utils/index.mjs";
 
 /**
  * GET handler for /api/dist-browser/fs
