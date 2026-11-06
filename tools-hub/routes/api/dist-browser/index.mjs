@@ -1,32 +1,15 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import {
   handleFS,
   handleImages,
   handleTrash,
   handleLogs,
 } from "./handlers/index.mjs";
+import { resolveRepoRoot } from "../../../utils/index.mjs";
 
-/**
- * Resolve the repository root by walking up from this file to the tools-hub
- * directory, then one more level up to the repo root.
- * tools-hub runs from repo root when invoked as `node tools-hub/index.mjs`.
- * Returns the repo root (sibling of the tools-hub directory).
- */
-function resolveRepoRoot() {
-  const current = fileURLToPath(new URL(".", import.meta.url));
-  const segments = current.split(path.sep);
-  // Walk up until we find the tools-hub directory
-  let dir = segments.join(path.sep);
-  while (!dir.endsWith(path.sep + "tools-hub") && dir !== "/") {
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  // One level up from tools-hub/ → repo root
-  return path.dirname(dir);
-}
+/** Output directory of generated images, relative to the repo root. */
+const DEFAULT_BASE_DIR = "dist";
+/** Directory holding run logs, relative to the repo root. */
+const DEFAULT_LOGS_DIR = "output/logs";
 
 /**
  * Factory function that creates the four dist-browser API route objects.
@@ -37,9 +20,8 @@ function resolveRepoRoot() {
  * @returns {Array<{testUrl: Function, serve: Function}>}
  */
 export default function apiDistBrowser(config = {}) {
-  const repoRoot = resolveRepoRoot();
-  const baseDir = config.baseDir || path.join(repoRoot, "dist");
-  const logsDir = config.logsDir || path.join(repoRoot, "output", "logs");
+  const baseDir = config.baseDir || resolveRepoRoot(DEFAULT_BASE_DIR);
+  const logsDir = config.logsDir || resolveRepoRoot(DEFAULT_LOGS_DIR);
 
   // --- Route: GET /api/dist-browser/fs/:path ---
   function testFS(url) {
@@ -47,7 +29,7 @@ export default function apiDistBrowser(config = {}) {
   }
 
   function serveFS(req, res) {
-    handleFS(baseDir, { ...req, url: req.url }, res);
+    handleFS(baseDir, req, res);
   }
 
   // --- Route: GET /api/dist-browser/images/:path ---
@@ -59,7 +41,7 @@ export default function apiDistBrowser(config = {}) {
   }
 
   function serveImages(req, res) {
-    handleImages(baseDir, { ...req, url: req.url }, res);
+    handleImages(baseDir, req, res);
   }
 
   // --- Route: POST /api/dist-browser/trash ---

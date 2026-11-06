@@ -57,7 +57,7 @@ return 403 and read failures return 500 instead of being masked by
 the UI has not been built the route answers 404 with a hint on how to build it.
 
 The directory of the build output comes from `uiPaths()` in
-`utils/path.mjs`; `createStaticRoutes({ uiDistDir })` (and
+`utils/path.mjs`; `createStaticRoutes({ distBrowserUiDistDir })` (and
 `createServerInstance(options)`) can override it, which is what the tests use
 to point the route at a temporary fixture.
 

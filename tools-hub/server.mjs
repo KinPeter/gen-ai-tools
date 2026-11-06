@@ -6,7 +6,7 @@ import apiRoutes from "./routes/api/index.mjs";
 /**
  * Creates the tools-hub HTTP server.
  *
- * Static UI routes are mounted under /static/<name>/
+ * Static UI routes are mounted under /<name>/
  * API routes are mounted under /api/<module>.
  *
  * @param {object} [options] - passed to createStaticRoutes, e.g. distBrowserUiDistDir
