@@ -58,6 +58,7 @@ export async function writeLog(logPath, entries) {
 }
 
 export async function addToLog({
+  // eslint-disable-next-line
   logPath,
   logEntries,
   job,
@@ -80,7 +81,8 @@ export async function addToLog({
     logEntries.push(entry);
     newEntries.push(entry);
   }
-  await writeLog(logPath, logEntries);
+  // Turned off json logging, only using DB
+  // await writeLog(logPath, logEntries);
   if (newEntries.length > 0) {
     try {
       await uploadLog(newEntries, dbConnection);
