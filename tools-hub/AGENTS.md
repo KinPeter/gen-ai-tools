@@ -39,10 +39,12 @@ match. Unmatched requests fall through to a default 404.
 
 ### Static UIs
 
-Static UI routes serve pre-built HTML files from the repository. The UI files
-live under `routes/static/<name>/` and each route is factory-function based —
+Static UI routes serve pre-built HTML files from the repository. The route
+modules live under `static/<name>/` and each route is factory-function based —
 it returns a new `{ testUrl, serve }` pair so routes can carry their own state
-(config paths, MIME types, etc.).
+(config paths, MIME types, etc.). The files those modules serve live elsewhere:
+`assets/` serves `tools-hub/assets/`, and `logfinder/` serves
+`logging/logfinder-ui/index.html`.
 
 Static UIs are mounted at clean paths without a `/static/` prefix. The route
 registry is created once at server start and cached.
@@ -74,8 +76,8 @@ data. They typically:
 2. Call into domain logic (e.g. MongoDB queries) via shared helpers.
 3. Set `Content-Type` and write JSON responses.
 
-API routes are organized under `routes/api/` with subfolders per domain
-(e.g. `routes/api/logging/` for all logging-related endpoints). Each module
+API routes are organized under `api/` with subfolders per domain
+(e.g. `api/logging/` for all logging-related endpoints). Each module
 is a self-contained file that exports a factory function.
 
 ### Path resolution
@@ -100,7 +102,7 @@ The server is started by `index.mjs` which:
 1. Loads `.env` (dotenv/config, top-level).
 2. Reads `TOOLS_HUB_PORT` env var (default 4218).
 3. Builds the dist-browser React app with Vite
-   (`routes/static/distbrowser/ui-build.mjs`) unless
+   (`static/distbrowser/ui-build.mjs`) unless
    `TOOLS_HUB_SKIP_UI_BUILD` is set to `1`/`true`/`yes`. A failing build is
    logged, not thrown, so existing artifacts are still served.
 4. Calls `start(port)` which creates the server instance and listens.
@@ -111,7 +113,7 @@ server process terminates cleanly when both handlers fire.
 
 ### UI build
 
-`routes/static/distbrowser/ui-build.mjs` is the only place that talks to Vite:
+`static/distbrowser/ui-build.mjs` is the only place that talks to Vite:
 it calls `build()` programmatically with `dist-browser/` as the root and writes
 to `dist-browser/dist/`. It sits next to the `distbrowser` route because both
 belong to that UI. Vite is imported lazily so tools-hub keeps zero runtime

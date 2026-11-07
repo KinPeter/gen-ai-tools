@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 
-import createStaticRoutes from "./routes/static/index.mjs";
-import apiRoutes from "./routes/api/index.mjs";
+import createStaticRoutes from "./static/index.mjs";
+import apiRoutes from "./api/index.mjs";
 
 /**
  * Creates the tools-hub HTTP server.
@@ -58,7 +58,7 @@ export async function start(port) {
   };
 }
 
-export { createStaticRoutes } from "./routes/static/index.mjs";
+export { createStaticRoutes } from "./static/index.mjs";
 export { apiRoutes };
 
 export default createServerInstance;

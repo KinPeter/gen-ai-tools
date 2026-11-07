@@ -17,6 +17,7 @@ vi.mock("node:http", () => {
 import * as httpModule from "node:http";
 import {
   createServerInstance,
+  createStaticRoutes,
   start,
   apiRoutes,
 } from "../../tools-hub/server.mjs";
@@ -38,9 +39,14 @@ describe("createServerInstance", () => {
   });
 
   it("imports apiRoutes from the api module", () => {
-    // The routes are built from the default export of routes/api/index.mjs
-    // which is populated by apiLoggingFindLog() factory
-    expect(createServerInstance).toBeDefined();
+    // The routes come from the default export of api/index.mjs, which now
+    // registers the find-log route plus the dist-browser routes.
+    expect(Array.isArray(apiRoutes)).toBe(true);
+
+    const hasDistBrowserRoute = apiRoutes.some((route) =>
+      route.testUrl("/api/dist-browser/fs"),
+    );
+    expect(hasDistBrowserRoute).toBe(true);
   });
 });
 
@@ -63,6 +69,23 @@ describe("route matching", () => {
       "Content-Type": "text/plain",
     });
     expect(mockRes.end).toHaveBeenCalledWith("Not Found");
+  });
+
+  it("dispatches a dist-browser URL to its registered api route", () => {
+    const server = createServerInstance();
+    const distBrowserRoute = apiRoutes.find((route) =>
+      route.testUrl("/api/dist-browser/fs"),
+    );
+    expect(distBrowserRoute).toBeDefined();
+
+    const serveSpy = vi.spyOn(distBrowserRoute, "serve");
+    server.handler(
+      { url: "/api/dist-browser/fs", headers: { host: "localhost:4218" } },
+      { writeHead: vi.fn(), end: vi.fn() },
+    );
+
+    expect(serveSpy).toHaveBeenCalled();
+    serveSpy.mockRestore();
   });
 
   it("calls route.serve when a route URL matches", async () => {
@@ -112,11 +135,11 @@ describe("start", () => {
 
 describe("export aliases", () => {
   it("exports createStaticRoutes named", () => {
-    expect(createServerInstance).toBeTypeOf("function");
+    expect(createStaticRoutes).toBeTypeOf("function");
   });
 
   it("exports apiRoutes as array", () => {
-    expect(typeof start).toBe("function");
+    expect(Array.isArray(apiRoutes)).toBe(true);
   });
 
   it("exports default as createServerInstance", () => {

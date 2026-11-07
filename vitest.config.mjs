@@ -31,7 +31,6 @@ export default defineConfig({
         "**/logging/temp-scripts/**",
         "**/logging/log-cleanup.mjs",
         "**/tools-hub/index.mjs",
-        "**/tools-hub/routes/api/dist-browser/handlers/*.mjs",
       ],
     },
   },

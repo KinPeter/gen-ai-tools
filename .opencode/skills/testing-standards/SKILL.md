@@ -52,8 +52,7 @@ These are hard requirements, not preferences.
   `tools-hub/`.
 - Excluded from coverage: `**/node_modules/**`, `**/test/**`, `**/output/**`,
   `**/dist/**`, `**/.tmp/**`, `**/workflows/*.json`, `**/logging/temp-scripts/**`,
-  `**/logging/log-cleanup.mjs`, `**/tools-hub/index.mjs`,
-  `**/tools-hub/routes/api/dist-browser/handlers/*.mjs`.
+  `**/logging/log-cleanup.mjs`, `**/tools-hub/index.mjs`
 - A file outside the include list carries no coverage expectation. Do not
   invent coverage for it.
 - Coverage thresholds are never changed as part of a testing run.

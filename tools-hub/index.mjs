@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { start } from "./server.mjs";
-import { buildDistBrowserUi } from "./routes/static/distbrowser/ui-build.mjs";
+import { buildDistBrowserUi } from "./static/distbrowser/ui-build.mjs";
 
 const PORT = Number(process.env.TOOLS_HUB_PORT) || 4218;
 
