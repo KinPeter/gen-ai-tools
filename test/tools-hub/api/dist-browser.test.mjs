@@ -17,7 +17,6 @@ import {
   handleFS,
   handleImages,
   handleTrash,
-  handleLogs,
 } from "../../../tools-hub/api/dist-browser/handlers/index.mjs";
 import {
   getContentType,
@@ -42,9 +41,6 @@ beforeAll(async () => {
     baseDir: await fs.promises.mkdtemp(
       path.join(os.tmpdir(), "dist-browser-test-"),
     ),
-    logsDir: await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "dist-browser-test-logs-"),
-    ),
   };
 
   await fs.promises.mkdir(path.join(testBase.baseDir, "images"), {
@@ -67,24 +63,10 @@ beforeAll(async () => {
     path.join(testBase.baseDir, "images", "nested.png"),
     PNG_DATA,
   );
-
-  // Write log files
-  await fs.promises.mkdir(testBase.logsDir, { recursive: true });
-  await fs.promises.writeFile(
-    path.join(testBase.logsDir, "run1.json"),
-    JSON.stringify([{ filename: "img1.png", prompt: "test1" }]),
-  );
-  await fs.promises.writeFile(
-    path.join(testBase.logsDir, "run2.json"),
-    JSON.stringify([{ filename: "img2.jpg", prompt: "test2" }]),
-  );
 });
 
 beforeEach(() => {
-  routes = apiDistBrowser({
-    baseDir: testBase.baseDir,
-    logsDir: testBase.logsDir,
-  });
+  routes = apiDistBrowser({ baseDir: testBase.baseDir });
 });
 
 afterEach(async () => {
@@ -100,19 +82,16 @@ afterEach(async () => {
 afterAll(async () => {
   if (testBase) {
     await fs.promises.rm(testBase.baseDir, { recursive: true, force: true });
-    if (fs.existsSync(testBase.logsDir)) {
-      await fs.promises.rm(testBase.logsDir, { recursive: true, force: true });
-    }
   }
 });
 
 // --- Tests ---
 
 describe("apiDistBrowser factory", () => {
-  it("returns an array of 4 route objects", () => {
+  it("returns an array of 3 route objects", () => {
     const routes = apiDistBrowser();
     expect(Array.isArray(routes)).toBe(true);
-    expect(routes).toHaveLength(4);
+    expect(routes).toHaveLength(3);
   });
 
   it("each route has testUrl and serve", () => {
@@ -120,6 +99,16 @@ describe("apiDistBrowser factory", () => {
     for (const route of routes) {
       expect(typeof route.testUrl).toBe("function");
       expect(typeof route.serve).toBe("function");
+    }
+  });
+
+  it("no route answers the removed bulk logs endpoint", () => {
+    for (const url of [
+      "/api/dist-browser/logs",
+      "/api/dist-browser/logs/",
+      "/api/dist-browser/logs/run1.json",
+    ]) {
+      expect(routes.some((route) => route.testUrl(url))).toBe(false);
     }
   });
 
@@ -131,10 +120,7 @@ describe("apiDistBrowser factory", () => {
     try {
       await fs.promises.writeFile(path.join(customBase, "marker.png"), "png");
 
-      const customRoutes = apiDistBrowser({
-        baseDir: customBase,
-        logsDir: testBase.logsDir,
-      });
+      const customRoutes = apiDistBrowser({ baseDir: customBase });
 
       const listingRes = mockRes();
       customRoutes[0].serve(mockReq("/api/dist-browser/fs"), listingRes);
@@ -153,34 +139,6 @@ describe("apiDistBrowser factory", () => {
       expect(imageRes.bodyBytes().toString("utf8")).toBe("png");
     } finally {
       await fs.promises.rm(customBase, { recursive: true, force: true });
-    }
-  });
-
-  it("uses the provided logsDir for the logs route", async () => {
-    const customLogs = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "dist-browser-custom-logs-"),
-    );
-
-    try {
-      await fs.promises.writeFile(
-        path.join(customLogs, "custom-run.json"),
-        JSON.stringify([{ filename: "custom.png", prompt: "from custom dir" }]),
-      );
-
-      const customRoutes = apiDistBrowser({
-        baseDir: testBase.baseDir,
-        logsDir: customLogs,
-      });
-
-      const res = mockRes();
-      customRoutes[3].serve(mockReq("/api/dist-browser/logs"), res);
-      expect(res._state().status).toBe(200);
-      expect(res._state().body.fileCount).toBe(1);
-      expect(res._state().body.entries).toEqual([
-        { filename: "custom.png", prompt: "from custom dir" },
-      ]);
-    } finally {
-      await fs.promises.rm(customLogs, { recursive: true, force: true });
     }
   });
 });
@@ -213,10 +171,6 @@ describe("fs route", () => {
 
     it("does not match /api/dist-browser/images", () => {
       expect(fsRoute().testUrl("/api/dist-browser/images")).toBe(false);
-    });
-
-    it("does not match /api/dist-browser/logs", () => {
-      expect(fsRoute().testUrl("/api/dist-browser/logs")).toBe(false);
     });
   });
 
@@ -325,10 +279,6 @@ describe("trash route", () => {
         true,
       );
     });
-
-    it("does not match /api/dist-browser/logs", () => {
-      expect(trashRoute().testUrl("/api/dist-browser/logs")).toBe(false);
-    });
   });
 
   describe("serve", () => {
@@ -378,55 +328,6 @@ describe("trash route", () => {
       );
       expect(res._state().status).toBe(200);
       expect(res._state().body.ok).toBe(false);
-    });
-  });
-});
-
-describe("logs route", () => {
-  const logsRoute = () => routes[3];
-
-  describe("testUrl", () => {
-    it("matches /api/dist-browser/logs exactly", () => {
-      expect(logsRoute().testUrl("/api/dist-browser/logs")).toBe(true);
-    });
-
-    it("matches /api/dist-browser/logs/", () => {
-      expect(logsRoute().testUrl("/api/dist-browser/logs/")).toBe(true);
-    });
-
-    it("matches /api/dist-browser/logs/subpath", () => {
-      expect(logsRoute().testUrl("/api/dist-browser/logs/something")).toBe(
-        true,
-      );
-    });
-
-    it("does not match /api/dist-browser/images", () => {
-      expect(logsRoute().testUrl("/api/dist-browser/images")).toBe(false);
-    });
-  });
-
-  describe("serve", () => {
-    it("returns log entries from configured logsDir", () => {
-      const res = mockRes();
-      logsRoute().serve(mockReq("/api/dist-browser/logs"), res);
-      const s = res._state();
-      expect(s.status).toBe(200);
-      expect(Array.isArray(s.body.entries)).toBe(true);
-      expect(s.body.fileCount).toBeGreaterThanOrEqual(1);
-    });
-
-    it("returns empty entries for missing logs dir", () => {
-      const customRoutes = apiDistBrowser({
-        baseDir: testBase.baseDir,
-        logsDir: "/nonexistent/path/logs",
-      });
-      const route = customRoutes[3];
-      const res = mockRes();
-      route.serve(mockReq("/api/dist-browser/logs"), res);
-      const s = res._state();
-      expect(s.status).toBe(200);
-      expect(s.body.entries).toEqual([]);
-      expect(s.body.fileCount).toBe(0);
     });
   });
 });
@@ -534,78 +435,6 @@ describe("handler functions", () => {
       renameSpy.mockRestore();
     }
   });
-
-  it("handleLogs reads from configured logsDir", () => {
-    const res = mockRes();
-    handleLogs(testBase.logsDir, { url: "/api/dist-browser/logs" }, res);
-    const s = res._state();
-    expect(s.status).toBe(200);
-    expect(Array.isArray(s.body.entries)).toBe(true);
-  });
-
-  it("handleLogs returns empty for directory with non-json files", async () => {
-    const tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "logs-non-json-test-"),
-    );
-    await fs.promises.writeFile(path.join(tmpDir, "readme.txt"), "not json");
-
-    const res = mockRes();
-    handleLogs(tmpDir, { url: "/api/dist-browser/logs" }, res);
-    const s = res._state();
-    expect(s.status).toBe(200);
-    expect(s.body.entries).toEqual([]);
-    expect(s.body.fileCount).toBe(0);
-
-    await fs.promises.rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it("handleLogs returns empty when logsDir does not exist", () => {
-    const res = mockRes();
-    handleLogs(
-      "/nonexistent/handlers-logs-dir",
-      { url: "/api/dist-browser/logs" },
-      res,
-    );
-    const s = res._state();
-    expect(s.status).toBe(200);
-    expect(s.body.entries).toEqual([]);
-    expect(s.body.fileCount).toBe(0);
-  });
-
-  it("handleLogs returns empty when the logs dir is removed before the request", async () => {
-    const tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "logs-removed-test-"),
-    );
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    const res = mockRes();
-    handleLogs(tmpDir, { url: "/api/dist-browser/logs" }, res);
-    const s = res._state();
-    expect(s.status).toBe(200);
-    expect(s.body.entries).toEqual([]);
-    expect(s.body.fileCount).toBe(0);
-  });
-
-  it("handleLogs skips malformed JSON files (inner catch)", async () => {
-    const tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "logs-malformed-test-"),
-    );
-    // Write a .json file with invalid JSON content
-    await fs.promises.writeFile(path.join(tmpDir, "bad.json"), "{invalid");
-    await fs.promises.writeFile(
-      path.join(tmpDir, "good.json"),
-      JSON.stringify([{ filename: "img.png" }]),
-    );
-
-    const res = mockRes();
-    handleLogs(tmpDir, { url: "/api/dist-browser/logs" }, res);
-    const s = res._state();
-    expect(s.status).toBe(200);
-    expect(s.body.fileCount).toBe(1);
-    expect(s.body.entries).toHaveLength(1);
-
-    await fs.promises.rm(tmpDir, { recursive: true, force: true });
-  });
 });
 
 describe("normalizePathSegment", () => {
@@ -695,79 +524,57 @@ describe("getContentType", () => {
 
 describe("route isolation (stateless routes)", () => {
   it("creates independent route sets with different configs", async () => {
-    const logsDirA = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "logs-a-"),
+    const baseDirA = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "dist-browser-base-a-"),
     );
-    const logsDirB = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "logs-b-"),
+    const baseDirB = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "dist-browser-base-b-"),
     );
 
     try {
-      await fs.promises.writeFile(
-        path.join(logsDirA, "a.json"),
-        JSON.stringify([{ filename: "a.png" }]),
-      );
-      await fs.promises.writeFile(
-        path.join(logsDirB, "b.json"),
-        JSON.stringify([{ filename: "b.png" }]),
-      );
+      await fs.promises.writeFile(path.join(baseDirA, "a.png"), "a");
+      await fs.promises.writeFile(path.join(baseDirB, "b.png"), "b");
 
-      const routesA = apiDistBrowser({
-        baseDir: testBase.baseDir,
-        logsDir: logsDirA,
-      });
-      const routesB = apiDistBrowser({
-        baseDir: testBase.baseDir,
-        logsDir: logsDirB,
-      });
+      const routesA = apiDistBrowser({ baseDir: baseDirA });
+      const routesB = apiDistBrowser({ baseDir: baseDirB });
 
-      // Each set should have 4 routes
-      expect(routesA).toHaveLength(4);
-      expect(routesB).toHaveLength(4);
+      // Each set should have 3 routes
+      expect(routesA).toHaveLength(3);
+      expect(routesB).toHaveLength(3);
 
-      // Each set reads from its own logsDir, not the other one.
+      // Each set reads from its own baseDir, not the other one.
       const resA = mockRes();
-      routesA[3].serve(mockReq("/api/dist-browser/logs"), resA);
+      routesA[0].serve(mockReq("/api/dist-browser/fs/"), resA);
       const resB = mockRes();
-      routesB[3].serve(mockReq("/api/dist-browser/logs"), resB);
+      routesB[0].serve(mockReq("/api/dist-browser/fs/"), resB);
 
-      expect(resA._state().body.entries).toEqual([{ filename: "a.png" }]);
-      expect(resA._state().body.fileCount).toBe(1);
-      expect(resB._state().body.entries).toEqual([{ filename: "b.png" }]);
-      expect(resB._state().body.fileCount).toBe(1);
+      expect(resA._state().body.entries.map((e) => e.name)).toEqual(["a.png"]);
+      expect(resB._state().body.entries.map((e) => e.name)).toEqual(["b.png"]);
     } finally {
-      await fs.promises.rm(logsDirA, { recursive: true, force: true });
-      await fs.promises.rm(logsDirB, { recursive: true, force: true });
+      await fs.promises.rm(baseDirA, { recursive: true, force: true });
+      await fs.promises.rm(baseDirB, { recursive: true, force: true });
     }
   });
 
   it("does not interfere with each other when called together", () => {
-    const routes = apiDistBrowser({
-      baseDir: testBase.baseDir,
-      logsDir: testBase.logsDir,
-    });
+    const routes = apiDistBrowser({ baseDir: testBase.baseDir });
 
     const fsRoute = routes[0];
     const imagesRoute = routes[1];
     const trashRoute = routes[2];
-    const logsRoute = routes[3];
 
     // Should not overlap
     expect(fsRoute.testUrl("/api/dist-browser/fs")).toBe(true);
     expect(imagesRoute.testUrl("/api/dist-browser/fs")).toBe(false);
     expect(trashRoute.testUrl("/api/dist-browser/fs")).toBe(false);
-    expect(logsRoute.testUrl("/api/dist-browser/fs")).toBe(false);
 
     expect(imagesRoute.testUrl("/api/dist-browser/images")).toBe(true);
     expect(fsRoute.testUrl("/api/dist-browser/images")).toBe(false);
     expect(trashRoute.testUrl("/api/dist-browser/images")).toBe(false);
-    expect(logsRoute.testUrl("/api/dist-browser/images")).toBe(false);
 
     expect(trashRoute.testUrl("/api/dist-browser/trash")).toBe(true);
-    expect(logsRoute.testUrl("/api/dist-browser/trash")).toBe(false);
-
-    expect(logsRoute.testUrl("/api/dist-browser/logs")).toBe(true);
-    expect(trashRoute.testUrl("/api/dist-browser/logs")).toBe(false);
+    expect(fsRoute.testUrl("/api/dist-browser/trash")).toBe(false);
+    expect(imagesRoute.testUrl("/api/dist-browser/trash")).toBe(false);
   });
 });
 
@@ -857,29 +664,5 @@ describe("handler coverage gaps", () => {
     expect(res._state().body.errors).toEqual([]);
     expect(fs.existsSync(path.join(trashDir, "trash-dstsafe.png"))).toBe(true);
     expect(fs.existsSync(testFile)).toBe(false);
-  });
-
-  it("handleLogs outer catch path (readdirSync throws)", async () => {
-    const tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), "logs-outer-catch-test-"),
-    );
-
-    // Spy on readdirSync so the existsSync check passes but the read fails.
-    const readdirSpy = vi.spyOn(fs, "readdirSync").mockImplementation(() => {
-      throw new Error("ENOSPC: disk full");
-    });
-
-    try {
-      const res = mockRes();
-      handleLogs(tmpDir, { url: "/api/dist-browser/logs" }, res);
-      const s = res._state();
-      expect(s.status).toBe(200);
-      expect(s.body.entries).toEqual([]);
-      expect(s.body.fileCount).toBe(0);
-    } finally {
-      readdirSpy.mockRestore();
-    }
-
-    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });

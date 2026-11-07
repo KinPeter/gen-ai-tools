@@ -1,24 +1,21 @@
 import "./LogViewer.css";
-import { matchLogEntry } from "../../utils/log-entry.mjs";
 import { colorizeJsonText } from "../../utils/colorize-json-text.mjs";
 
 /**
- * Log Viewer column: displays a generation log entry as a theme-aware code
- * block with vertical centering and scrollable overflow.
+ * Log Viewer column: displays the generation log entry fetched for the
+ * selected image as a theme-aware code block with vertical centering and
+ * scrollable overflow.
  *
  * @param {object} props
- * @param {object|null} props.entry - Selected image listing entry.
- * @param {Array<object>} props.logEntries - Cached log entries.
- * @param {boolean} props.logsLoading - Whether logs are still being fetched.
+ * @param {object} props.log - Log lookup state for the selected image, as
+ *   returned by `useImageLog`: `{ selected, entry, loading, error }`.
  */
-export function LogViewer({ entry, logEntries, logsLoading }) {
-  const isEmpty = !entry;
-  const logEntry = matchLogEntry(entry, logEntries);
-  const noMatch = !isEmpty && !logEntry;
+export function LogViewer({ log = {} }) {
+  const { selected = false, entry = null, loading = false, error = null } = log;
 
   // ── Empty state ────────────────────────────────────────────────────────
 
-  if (isEmpty) {
+  if (!selected) {
     return (
       <div className="log-viewer-empty">
         <span className="log-viewer-empty-text">No log entry</span>
@@ -26,9 +23,29 @@ export function LogViewer({ entry, logEntries, logsLoading }) {
     );
   }
 
-  // ── No match state ─────────────────────────────────────────────────────
+  // ── Loading state ──────────────────────────────────────────────────────
 
-  if (noMatch) {
+  if (loading) {
+    return (
+      <div className="log-viewer-empty" role="status" aria-busy="true">
+        <span className="log-viewer-loading-text">Loading log…</span>
+      </div>
+    );
+  }
+
+  // ── Lookup failed state ────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div className="log-viewer-empty" role="alert">
+        <span className="log-viewer-error">Log lookup failed: {error}</span>
+      </div>
+    );
+  }
+
+  // ── No log found state ─────────────────────────────────────────────────
+
+  if (!entry) {
     return (
       <div className="log-viewer-empty">
         <span className="log-viewer-no-match">
@@ -38,19 +55,9 @@ export function LogViewer({ entry, logEntries, logsLoading }) {
     );
   }
 
-  // ── Loading state ──────────────────────────────────────────────────────
-
-  if (logsLoading) {
-    return (
-      <div className="log-viewer-empty">
-        <span className="log-viewer-loading-text">Loading log…</span>
-      </div>
-    );
-  }
-
   // ── Log entry rendering ────────────────────────────────────────────────
 
-  const logText = JSON.stringify(logEntry, null, 2);
+  const logText = JSON.stringify(entry, null, 2);
 
   return (
     <div className="log-viewer-content">

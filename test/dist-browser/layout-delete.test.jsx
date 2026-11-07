@@ -30,12 +30,63 @@ function apiResponse(body, status = 200) {
 }
 
 /**
- * Mock `/api/dist-browser/fs/<path>` and `/api/dist-browser/trash` against an
+ * Reply for a `GET /api/logging/find-log` request, mirroring
+ * tools-hub/api/logging/find-log.mjs: the `filename` query parameter is
+ * required and the handler normalises it to the extension-less basename.
+ */
+function findLogReply(requestUrl, logStatus, logEntries) {
+  if (logStatus) return apiResponse({ error: "Log lookup failed" }, logStatus);
+
+  const filename =
+    new URL(requestUrl, "http://localhost").searchParams.get("filename") || "";
+
+  if (!filename)
+    return apiResponse({ error: "Missing filename parameter" }, 400);
+
+  const basename = filename
+    .split("/")
+    .pop()
+    .replace(/\.[^.]+$/, "");
+  const entry = logEntries[basename];
+
+  return entry
+    ? apiResponse(entry, 200)
+    : apiResponse({ error: `No log entry found for: ${filename}` }, 404);
+}
+
+/**
+ * Delays a log reply and rejects it when the request's signal is aborted, the
+ * way a real `fetch` behaves. Without this a lookup superseded by a new
+ * selection would still resolve and overwrite the cleared log state.
+ */
+function settleReply(reply, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(reply), 5);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(
+        Object.assign(new Error("The operation was aborted"), {
+          name: "AbortError",
+        }),
+      );
+    });
+  });
+}
+
+/**
+ * Mock `/api/dist-browser/fs/<path>`, `/api/dist-browser/trash` and the
+ * per-image log lookup `/api/logging/find-log?filename=<image>` against an
  * in-memory listing so a delete really removes the entry from the listing the
  * app re-fetches.
  *
  * `/api/dist-browser/trash` answers like the tools-hub trash handler: HTTP 200
  * with `{ ok, errors }`, per-path failures reported inside the body.
+ *
+ * `logEntries` maps a basename (no extension, the way the find-log endpoint
+ * normalises it) to the generation log document to return for that image. The
+ * map lives in the returned `state`, so a test can add a log written after an
+ * image was selected and check that a refresh re-looks it up.
+ * `logStatus` overrides the HTTP status of every log lookup, for failure paths.
  *
  * `trashResponse` overrides the trash reply (for HTTP failures),
  * `trashError` makes the trash request throw (for network failures),
@@ -45,18 +96,33 @@ function apiResponse(body, status = 200) {
  */
 function mockApi({
   listings,
-  logsEntries = [],
+  logEntries = {},
+  logStatus = null,
   trashResponse = null,
   trashError = null,
   fsFailOnCall = null,
   serverCreatesTrash = false,
 }) {
-  const state = { listings: { ...listings }, trashed: [], fsCalls: 0 };
+  // `logEntries` lives in the state so a test can add a log written after the
+  // image was first selected and prove a refresh re-looks it up.
+  const state = {
+    listings: { ...listings },
+    logEntries: { ...logEntries },
+    trashed: [],
+    fsCalls: 0,
+  };
 
   const fetchMock = vi
     .spyOn(globalThis, "fetch")
     .mockImplementation(async (url, options = {}) => {
       const requestUrl = String(url);
+
+      if (requestUrl.startsWith("/api/logging/find-log")) {
+        return settleReply(
+          findLogReply(requestUrl, logStatus, state.logEntries),
+          options.signal,
+        );
+      }
 
       if (requestUrl.startsWith("/api/dist-browser/fs/")) {
         state.fsCalls += 1;
@@ -67,13 +133,6 @@ function mockApi({
           requestUrl.slice("/api/dist-browser/fs/".length),
         );
         return apiResponse({ path, entries: state.listings[path] ?? [] });
-      }
-
-      if (requestUrl === "/api/dist-browser/logs") {
-        return apiResponse({
-          entries: logsEntries,
-          fileCount: logsEntries.length,
-        });
       }
 
       if (requestUrl === "/api/dist-browser/trash") {
@@ -180,6 +239,11 @@ describe("Layout delete flow", () => {
     expect(emptyViewer(container)).toBeInTheDocument();
     expect(emptyViewer(container).textContent).toMatch(/No image selected/i);
     expect(emptyViewer(container).getAttribute("role")).toBe("status");
+    // No image is selected, so the log column has nothing to look up.
+    expect(
+      container.querySelector(".log-viewer-empty-text"),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".log-viewer-loading-text")).toBeNull();
   });
 
   it("displays an image when it is clicked in the file list", async () => {
@@ -191,6 +255,159 @@ describe("Layout delete flow", () => {
 
     expect(viewerSrc(container)).toBe("/api/dist-browser/images/img2.jpg");
     expect(container.querySelector(".image-viewer-empty")).toBeNull();
+  });
+
+  it("fetches and renders the generation log of the selected image", async () => {
+    const { container, fetchMock } = renderLayout(
+      { "": [image("img1.png"), image("img2.jpg")] },
+      {
+        logEntries: {
+          img2: {
+            filename: "img2",
+            prompt: { text: "a dog" },
+            generatedIn: "0:10",
+          },
+        },
+      },
+    );
+
+    await selectImage(container, "img2.jpg");
+
+    await waitFor(() =>
+      expect(container.querySelector(".log-viewer-content")).toBeTruthy(),
+    );
+    expect(container.querySelector("pre code").textContent).toContain(
+      '"a dog"',
+    );
+
+    // The lookup is a per-image find-log request, not a bulk log download.
+    const logCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).startsWith("/api/logging/find-log"),
+    );
+    expect(String(logCall[0])).toBe("/api/logging/find-log?filename=img2.jpg");
+    expect(logCall[1].cache).toBe("no-store");
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).startsWith("/api/dist-browser/logs"),
+      ),
+    ).toBe(false);
+  });
+
+  it("shows the no-log state when the lookup answers 404", async () => {
+    const { container } = renderLayout({ "": [image("img1.png")] });
+
+    await selectImage(container, "img1.png");
+
+    await waitFor(() =>
+      expect(container.querySelector(".log-viewer-no-match")).toBeTruthy(),
+    );
+    expect(container.querySelector(".log-viewer-error")).toBeNull();
+  });
+
+  it("shows an alert when the log lookup fails", async () => {
+    const { container } = renderLayout(
+      { "": [image("img1.png")] },
+      { logStatus: 503 },
+    );
+
+    await selectImage(container, "img1.png");
+
+    await waitFor(() =>
+      expect(container.querySelector(".log-viewer-error")).toBeTruthy(),
+    );
+    expect(container.querySelector(".log-viewer-error").textContent).toBe(
+      "Log lookup failed: Log lookup failed",
+    );
+    expect(
+      container.querySelector(".log-viewer-empty").getAttribute("role"),
+    ).toBe("alert");
+  });
+
+  it("re-looks up the log of the still-selected image when the folder is refreshed", async () => {
+    const { container, state, fetchMock } = renderLayout(
+      { "": [image("img1.png"), image("img2.jpg")] },
+      { logEntries: { img2: { filename: "img2", prompt: { text: "first" } } } },
+    );
+
+    await selectImage(container, "img2.jpg");
+    await waitFor(() =>
+      expect(container.querySelector(".log-viewer-content")).toBeTruthy(),
+    );
+    expect(container.querySelector("pre code").textContent).toContain(
+      '"first"',
+    );
+
+    // A log written after the image was selected must be fetched again on refresh.
+    state.logEntries.img2 = { filename: "img2", prompt: { text: "second" } };
+
+    fireEvent.click(container.querySelector(".file-browser-refresh"));
+
+    await waitFor(() => {
+      const logUrls = fetchMock.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.startsWith("/api/logging/find-log"));
+      expect(logUrls).toHaveLength(2);
+      expect(logUrls[1]).toBe("/api/logging/find-log?filename=img2.jpg");
+    });
+
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    // Refresh re-lists the folder and re-runs the lookup for the same image.
+    expect(
+      urls.filter((url) => url.startsWith("/api/dist-browser/fs/")),
+    ).toHaveLength(2);
+  });
+
+  it("renders a log written after the selection when the refreshed listing fails", async () => {
+    // The refreshed listing is made to fail so the selection is not reset by the
+    // listing load: this isolates the refresh key bump, which re-looks up the
+    // log for the image that is still displayed.
+    const { container, state } = renderLayout(
+      { "": [image("img2.jpg")] },
+      {
+        logEntries: { img2: { filename: "img2", prompt: { text: "first" } } },
+        fsFailOnCall: 2,
+      },
+    );
+
+    await selectImage(container, "img2.jpg");
+    await waitFor(() =>
+      expect(container.querySelector(".log-viewer-content")).toBeTruthy(),
+    );
+    expect(container.querySelector("pre code").textContent).toContain(
+      '"first"',
+    );
+
+    state.logEntries.img2 = { filename: "img2", prompt: { text: "second" } };
+
+    fireEvent.click(container.querySelector(".file-browser-refresh"));
+
+    await waitFor(() =>
+      expect(container.querySelector("pre code").textContent).toContain(
+        '"second"',
+      ),
+    );
+  });
+
+  it("refreshes the listing without a log lookup when nothing is selected", async () => {
+    const { container, fetchMock } = renderLayout({ "": [image("img1.png")] });
+
+    await waitFor(() => expect(itemByName(container, "img1.png")).toBeTruthy());
+
+    fireEvent.click(container.querySelector(".file-browser-refresh"));
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([url]) =>
+          String(url).startsWith("/api/dist-browser/fs/"),
+        ),
+      ).toHaveLength(2),
+    );
+    // Nothing is selected, so refreshing the folder must not look up a log.
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).startsWith("/api/logging/find-log"),
+      ),
+    ).toBe(false);
   });
 
   it("clears the viewer when a folder is clicked while an image is displayed", async () => {
@@ -207,7 +424,18 @@ describe("Layout delete flow", () => {
     expect(emptyViewer(container)).toBeInTheDocument();
     // The folder is the highlighted row, but no image or log is shown
     expect(selectedItemNames(container)).toEqual(["archive"]);
-    expect(container.querySelector(".log-viewer-placeholder")).toBeNull();
+    // Selecting a folder clears the log column back to its "nothing selected"
+    // state: no lookup is in flight and nothing is rendered.
+    await waitFor(() =>
+      expect(
+        container.querySelector(".log-viewer-empty-text"),
+      ).toBeInTheDocument(),
+    );
+    expect(container.querySelector(".log-viewer-empty-text").textContent).toBe(
+      "No log entry",
+    );
+    expect(container.querySelector(".log-viewer-loading-text")).toBeNull();
+    expect(container.querySelector(".log-viewer-content")).toBeNull();
   });
 
   it("selects and displays the next image after deleting one in the middle", async () => {
@@ -237,9 +465,12 @@ describe("Layout delete flow", () => {
     expect(
       container.querySelector(".image-viewer-image").getAttribute("alt"),
     ).toBe("img3.png");
-    // LogViewer renders the "no match" state when no log entry is available
+    // LogViewer re-looks-up the new selection and renders the "no log found"
+    // state once that lookup answers 404.
+    await waitFor(() =>
+      expect(container.querySelector(".log-viewer-no-match")).toBeTruthy(),
+    );
     expect(container.querySelector(".log-viewer-empty")).toBeTruthy();
-    expect(container.querySelector(".log-viewer-no-match")).toBeTruthy();
 
     // Refreshed listing after the trash call
     const urls = fetchMock.mock.calls.map(([url]) => String(url));

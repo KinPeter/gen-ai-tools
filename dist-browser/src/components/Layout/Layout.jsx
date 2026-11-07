@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useColumnResize } from "../../hooks/useColumnResize";
 import { useFileBrowserState } from "../../hooks/useFileBrowserState";
 import { useFolderPath } from "../../hooks/useFolderPath";
-import { useLogEntries } from "../../hooks/useLogEntries";
+import { useImageLog } from "../../hooks/useImageLog";
 import { TopBar } from "../TopBar/TopBar";
 import { Column } from "../Column/Column";
 import { ResizeHandle } from "../ResizeHandle/ResizeHandle";
@@ -21,15 +21,17 @@ export function Layout() {
   const { currentPath, navigateTo } = useFolderPath();
   const browser = useFileBrowserState(currentPath, navigateTo);
 
-  // Log entries: fetch on mount, re-fetch when the refresh key changes.
+  // The log for the selected image is fetched per selection, in parallel with
+  // the image file request made by the Image Viewer. The lookup is keyed on the
+  // selected image path, which the endpoint normalises to the bare filename.
   const [refreshKey, setRefreshKey] = useState(0);
-  const logs = useLogEntries(refreshKey);
+  const log = useImageLog(browser.selectedImagePath, refreshKey);
 
-  // Handle refresh: re-fetch both the directory listing and the log entries
-  // in the same event so React batches them into one update.
+  // Handle refresh: re-fetch the directory listing and re-look-up the log for
+  // the image that is still selected, in the same event so React batches them.
   const handleRefresh = useCallback(() => {
     browser.refresh();
-    setRefreshKey((k) => k + 1);
+    setRefreshKey((key) => key + 1);
   }, [browser]);
 
   return (
@@ -50,7 +52,7 @@ export function Layout() {
             onNavigate={navigateTo}
             onSelect={browser.selectEntry}
             onDelete={browser.deleteEntry}
-            onRefresh={browser.refresh}
+            onRefresh={handleRefresh}
           />
         </Column>
         <ResizeHandle index={0} width={widths[0]} onStartDrag={startDrag} />
@@ -73,11 +75,7 @@ export function Layout() {
             minWidth: minWidths[2],
           }}
         >
-          <LogViewer
-            entry={browser.selectedEntry}
-            logEntries={logs.entries}
-            logsLoading={logs.loading}
-          />
+          <LogViewer log={log} />
         </Column>
       </div>
     </div>

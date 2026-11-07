@@ -10,7 +10,6 @@ const DIST_BROWSER_PATHS = [
   "/api/dist-browser/fs",
   "/api/dist-browser/images",
   "/api/dist-browser/trash",
-  "/api/dist-browser/logs",
 ];
 
 describe("API route registry", () => {
@@ -18,8 +17,8 @@ describe("API route registry", () => {
     expect(Array.isArray(apiRoutes)).toBe(true);
   });
 
-  it("registers the find-log route and the four dist-browser routes", () => {
-    expect(apiRoutes).toHaveLength(5);
+  it("registers the find-log route and the three dist-browser routes", () => {
+    expect(apiRoutes).toHaveLength(4);
   });
 
   it("contains the find-log route with its real URL matching", () => {
@@ -37,6 +36,17 @@ describe("API route registry", () => {
       const matchingRoutes = apiRoutes.filter((route) => route.testUrl(url));
       expect(matchingRoutes).toHaveLength(1);
       expect(typeof matchingRoutes[0].serve).toBe("function");
+    }
+  });
+
+  it("no route answers the removed bulk logs endpoint", () => {
+    for (const url of [
+      "/api/dist-browser/logs",
+      "/api/dist-browser/logs/",
+      "/api/dist-browser/logs/run1.json",
+    ]) {
+      const matchingRoutes = apiRoutes.filter((route) => route.testUrl(url));
+      expect(matchingRoutes).toHaveLength(0);
     }
   });
 

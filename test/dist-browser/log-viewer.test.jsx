@@ -4,98 +4,24 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { LogViewer } from "../../dist-browser/src/components/LogViewer/LogViewer.jsx";
-import { matchLogEntry } from "../../dist-browser/src/utils/log-entry.mjs";
 
 // --- Fixtures ---
 
-const fixtures = {
-  logEntries: [
-    {
-      filename: "bp-cp_20261005233501.png",
-      prompt: { text: "a cat" },
-      generatedIn: "0:24",
-    },
-    {
-      filename: "test-image.png",
-      prompt: { text: "a dog" },
-      generatedIn: "0:10",
-    },
-  ],
-  imageEntries: [
-    { name: "bp-cp_20261005233501.jpg", type: "file", ext: "jpg" },
-    { name: "no-match.jpg", type: "file", ext: "jpg" },
-    { name: "folder-only", type: "folder", ext: "" },
-  ],
+const logEntry = {
+  filename: "bp-cp_20261005233501",
+  prompt: { text: "a cat", negative: "blurry" },
+  generatedIn: "0:24",
+  seed: 1234,
 };
 
 // --- Helpers ---
 
-function renderLogViewer(props = {}) {
-  const defaultProps = {
-    entry: null,
-    logEntries: fixtures.logEntries,
-    logsLoading: false,
-    ...props,
-  };
-  const result = render(<LogViewer {...defaultProps} />);
-  return {
-    ...result,
-    rerenderLogViewer: (nextProps = {}) =>
-      result.rerender(<LogViewer {...defaultProps} {...nextProps} />),
-  };
+/** Renders LogViewer with the state shape `useImageLog` returns. */
+function renderLogViewer(log) {
+  return render(<LogViewer log={log} />);
 }
 
 // --- Tests ---
-
-describe("matchLogEntry", () => {
-  it("matches a .jpg image to its .png log entry", () => {
-    const imageEntry = {
-      name: "bp-cp_20261005233501.jpg",
-      type: "file",
-      ext: "jpg",
-    };
-    const result = matchLogEntry(imageEntry, fixtures.logEntries);
-    expect(result.filename).toBe("bp-cp_20261005233501.png");
-  });
-
-  it("returns null for null entry", () => {
-    expect(matchLogEntry(null, fixtures.logEntries)).toBeNull();
-  });
-
-  it("returns null for undefined entry", () => {
-    expect(matchLogEntry(undefined, fixtures.logEntries)).toBeNull();
-  });
-
-  it("returns null when no log entry matches", () => {
-    const imageEntry = { name: "missing.jpg", type: "file", ext: "jpg" };
-    expect(matchLogEntry(imageEntry, fixtures.logEntries)).toBeNull();
-  });
-
-  it("converts .jpeg to .png", () => {
-    const imageEntry = { name: "test.jpeg", type: "file", ext: "jpeg" };
-    expect(matchLogEntry(imageEntry, fixtures.logEntries)).toBeNull();
-  });
-
-  it("converts .png to .png (identity)", () => {
-    const imageEntry = { name: "test-image.png", type: "file", ext: "png" };
-    const result = matchLogEntry(imageEntry, fixtures.logEntries);
-    expect(result.filename).toBe("test-image.png");
-  });
-
-  it("returns null for non-image entries", () => {
-    const imageEntry = { name: "folder-only", type: "folder", ext: "" };
-    expect(matchLogEntry(imageEntry, fixtures.logEntries)).toBeNull();
-  });
-
-  it("returns null for empty log entries array", () => {
-    const imageEntry = {
-      name: "bp-cp_20261005233501.jpg",
-      type: "file",
-      ext: "jpg",
-    };
-    expect(matchLogEntry(imageEntry, [])).toBeNull();
-  });
-});
 
 describe("LogViewer", () => {
   afterEach(() => cleanup());
@@ -103,142 +29,223 @@ describe("LogViewer", () => {
   // ── Empty state ──────────────────────────────────────────────────────
 
   describe("empty state", () => {
-    it('renders "No log entry" when entry is null', () => {
-      const { getByText } = renderLogViewer({ entry: null });
-      expect(getByText("No log entry")).toBeTruthy();
+    it('renders "No log entry" when nothing is selected', () => {
+      const { getByText } = renderLogViewer({
+        selected: false,
+        entry: null,
+        loading: false,
+        error: null,
+      });
+      expect(getByText("No log entry")).toBeInTheDocument();
     });
 
-    it('renders "No log entry" when entry is undefined', () => {
-      const { getByText } = renderLogViewer({ entry: undefined });
-      expect(getByText("No log entry")).toBeTruthy();
+    it('renders "No log entry" when the log prop is missing entirely', () => {
+      const { getByText } = render(<LogViewer />);
+      expect(getByText("No log entry")).toBeInTheDocument();
     });
 
-    it("renders with the muted text class", () => {
-      const { container } = renderLogViewer({ entry: null });
-      const wrapper = container.querySelector(".log-viewer-empty");
-      expect(wrapper).toBeTruthy();
-    });
-  });
-
-  // ── No match state ───────────────────────────────────────────────────
-
-  describe("no match state", () => {
-    it('displays "No generation log found for this image" when no log matches', () => {
-      const imageEntry = { name: "no-match.jpg", type: "file", ext: "jpg" };
-      const { getByText } = renderLogViewer({ entry: imageEntry });
-      expect(getByText("No generation log found for this image.")).toBeTruthy();
+    it("keeps the empty state even when a stale entry or error is present", () => {
+      const { getByText, container } = renderLogViewer({
+        selected: false,
+        entry: logEntry,
+        loading: true,
+        error: "HTTP 500",
+      });
+      expect(getByText("No log entry")).toBeInTheDocument();
+      expect(container.querySelector(".log-viewer-loading-text")).toBeNull();
+      expect(container.querySelector(".log-viewer-error")).toBeNull();
     });
 
-    it("renders with the muted text class", () => {
-      const imageEntry = { name: "no-match.jpg", type: "file", ext: "jpg" };
-      const { container } = renderLogViewer({ entry: imageEntry });
-      const wrapper = container.querySelector(".log-viewer-empty");
-      expect(wrapper).toBeTruthy();
+    it("uses the muted wrapper class for the empty state", () => {
+      const { container } = renderLogViewer({ selected: false });
+      expect(container.querySelector(".log-viewer-empty")).toBeInTheDocument();
     });
   });
 
   // ── Loading state ────────────────────────────────────────────────────
 
   describe("loading state", () => {
-    it('renders "Loading log…" when logsLoading is true and entry exists', () => {
-      const imageEntry = {
-        name: "bp-cp_20261005233501.jpg",
-        type: "file",
-        ext: "jpg",
-      };
+    it('renders "Loading log…" while the lookup is in flight', () => {
       const { getByText } = renderLogViewer({
-        entry: imageEntry,
-        logsLoading: true,
+        selected: true,
+        entry: null,
+        loading: true,
+        error: null,
       });
-      expect(getByText(/Loading log/i)).toBeTruthy();
+      expect(getByText(/Loading log/i)).toBeInTheDocument();
+    });
+
+    it("marks the loading state as a busy status region", () => {
+      const { container } = renderLogViewer({ selected: true, loading: true });
+      const wrapper = container.querySelector(".log-viewer-empty");
+      expect(wrapper).toHaveAttribute("role", "status");
+      expect(wrapper).toHaveAttribute("aria-busy", "true");
+    });
+
+    it("shows loading ahead of an error or a missing entry", () => {
+      const { getByText, container } = renderLogViewer({
+        selected: true,
+        entry: null,
+        loading: true,
+        error: "HTTP 500",
+      });
+      expect(getByText(/Loading log/i)).toBeInTheDocument();
+      expect(container.querySelector(".log-viewer-error")).toBeNull();
+      expect(container.querySelector(".log-viewer-no-match")).toBeNull();
+    });
+
+    it("shows loading instead of an entry that is already present", () => {
+      const { getByText, container } = renderLogViewer({
+        selected: true,
+        entry: logEntry,
+        loading: true,
+        error: null,
+      });
+      expect(getByText(/Loading log/i)).toBeInTheDocument();
+      expect(container.querySelector(".log-viewer-content")).toBeNull();
+    });
+  });
+
+  // ── Lookup failed state ──────────────────────────────────────────────
+
+  describe("lookup failed state", () => {
+    it("renders the error message returned by the lookup", () => {
+      const { getByText } = renderLogViewer({
+        selected: true,
+        entry: null,
+        loading: false,
+        error: "Database unavailable",
+      });
+      expect(
+        getByText("Log lookup failed: Database unavailable"),
+      ).toBeInTheDocument();
+    });
+
+    it("announces the failure as an alert", () => {
+      const { container } = renderLogViewer({
+        selected: true,
+        error: "HTTP 502",
+      });
+      const wrapper = container.querySelector(".log-viewer-empty");
+      expect(wrapper).toHaveAttribute("role", "alert");
+      expect(wrapper.querySelector(".log-viewer-error")).toBeInTheDocument();
+    });
+
+    it("shows the error instead of the no-log message", () => {
+      const { getByText, container } = renderLogViewer({
+        selected: true,
+        entry: null,
+        loading: false,
+        error: "network down",
+      });
+      expect(getByText("Log lookup failed: network down")).toBeInTheDocument();
+      expect(container.querySelector(".log-viewer-no-match")).toBeNull();
+    });
+
+    it("shows the error instead of a stale entry left from a previous lookup", () => {
+      const { getByText, container } = renderLogViewer({
+        selected: true,
+        entry: logEntry,
+        loading: false,
+        error: "HTTP 503",
+      });
+      expect(getByText("Log lookup failed: HTTP 503")).toBeInTheDocument();
+      expect(container.querySelector(".log-viewer-content")).toBeNull();
+    });
+
+    it("renders the no-log message when the error is empty", () => {
+      const { getByText } = renderLogViewer({
+        selected: true,
+        entry: null,
+        loading: false,
+        error: "",
+      });
+      expect(
+        getByText("No generation log found for this image."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  // ── No log found state ───────────────────────────────────────────────
+
+  describe("no log found state", () => {
+    it('displays "No generation log found for this image" when there is no entry', () => {
+      const { getByText } = renderLogViewer({
+        selected: true,
+        entry: null,
+        loading: false,
+        error: null,
+      });
+      expect(
+        getByText("No generation log found for this image."),
+      ).toBeInTheDocument();
+    });
+
+    it("treats an undefined entry as no log found", () => {
+      const { getByText } = renderLogViewer({ selected: true });
+      expect(
+        getByText("No generation log found for this image."),
+      ).toBeInTheDocument();
+    });
+
+    it("uses the muted wrapper class for the no-log state", () => {
+      const { container } = renderLogViewer({ selected: true, entry: null });
+      expect(container.querySelector(".log-viewer-empty")).toBeInTheDocument();
     });
   });
 
   // ── Log entry rendering ──────────────────────────────────────────────
 
   describe("log entry rendering", () => {
-    it("renders a <pre> element when a log entry matches", () => {
-      const imageEntry = {
-        name: "bp-cp_20261005233501.jpg",
-        type: "file",
-        ext: "jpg",
-      };
-      const { container } = renderLogViewer({ entry: imageEntry });
-      expect(container.querySelector("pre")).toBeTruthy();
+    it("renders a <pre> element containing the entry", () => {
+      const { container } = renderLogViewer({
+        selected: true,
+        entry: logEntry,
+      });
+      expect(container.querySelector("pre")).toBeInTheDocument();
+      expect(container.querySelector("pre code")).toBeInTheDocument();
     });
 
-    it("renders a <code> element inside the <pre>", () => {
-      const imageEntry = {
-        name: "bp-cp_20261005233501.jpg",
-        type: "file",
-        ext: "jpg",
-      };
-      const { container } = renderLogViewer({ entry: imageEntry });
-      expect(container.querySelector("pre code")).toBeTruthy();
-    });
-
-    it("renders the JSON stringified log entry", () => {
-      const imageEntry = {
-        name: "bp-cp_20261005233501.jpg",
-        type: "file",
-        ext: "jpg",
-      };
-      const { container } = renderLogViewer({ entry: imageEntry });
+    it("renders the JSON stringified entry", () => {
+      const { container } = renderLogViewer({
+        selected: true,
+        entry: logEntry,
+      });
       const code = container.querySelector("pre code");
       expect(code.textContent).toContain('"filename"');
-      expect(code.textContent).toContain('"bp-cp_20261005233501.png"');
+      expect(code.textContent).toContain('"bp-cp_20261005233501"');
       expect(code.textContent).toContain('"a cat"');
     });
 
-    it("renders the content wrapper with the correct class", () => {
-      const imageEntry = {
-        name: "bp-cp_20261005233501.jpg",
-        type: "file",
-        ext: "jpg",
-      };
-      const { container } = renderLogViewer({ entry: imageEntry });
-      expect(container.querySelector(".log-viewer-content")).toBeTruthy();
-    });
-
     it("renders colorized spans inside the <code> element", () => {
-      const imageEntry = {
-        name: "bp-cp_20261005233501.jpg",
-        type: "file",
-        ext: "jpg",
-      };
-      const { container } = renderLogViewer({ entry: imageEntry });
-      const code = container.querySelector("pre code");
-      const spans = code.querySelectorAll(".log-viewer-token-key");
+      const { container } = renderLogViewer({
+        selected: true,
+        entry: logEntry,
+      });
+      const spans = container.querySelectorAll(".log-viewer-token-key");
       expect(spans.length).toBeGreaterThan(0);
     });
 
-    it("renders with monospace font via CSS class", () => {
-      const imageEntry = {
-        name: "bp-cp_20261005233501.jpg",
-        type: "file",
-        ext: "jpg",
-      };
-      const { container } = renderLogViewer({ entry: imageEntry });
-      const codeEl = container.querySelector(".log-viewer-code");
-      expect(codeEl).toBeTruthy();
-      // jsdom does not resolve CSS custom properties, so we check the
-      // class selector exists instead of the computed style.
-      expect(codeEl).toHaveClass("log-viewer-code");
-    });
-  });
-
-  // ── CSS class structure ──────────────────────────────────────────────
-
-  describe("CSS classes", () => {
-    it("applies log-viewer-code class to the <pre> element", () => {
-      const imageEntry = {
-        name: "bp-cp_20261005233501.jpg",
-        type: "file",
-        ext: "jpg",
-      };
-      const { container } = renderLogViewer({ entry: imageEntry });
+    it("applies the log-viewer-content and log-viewer-code classes", () => {
+      const { container } = renderLogViewer({
+        selected: true,
+        entry: logEntry,
+      });
+      expect(
+        container.querySelector(".log-viewer-content"),
+      ).toBeInTheDocument();
       const code = container.querySelector(".log-viewer-code");
-      expect(code).toBeTruthy();
+      expect(code).toBeInTheDocument();
+      expect(code.tagName).toBe("PRE");
+    });
+
+    it("renders a log entry that is not a plain object", () => {
+      const { container, getByText } = renderLogViewer({
+        selected: true,
+        entry: [{ filename: "a", prompt: "batch" }],
+      });
+      expect(container.querySelector("pre code")).toBeInTheDocument();
+      expect(getByText(/"filename"/)).toBeInTheDocument();
     });
   });
 });

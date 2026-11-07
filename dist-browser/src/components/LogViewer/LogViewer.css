@@ -47,7 +47,7 @@
   margin: 0;
 }
 
-/* ── Empty / no-match / loading states ───────────────────────────────── */
+/* ── Empty / no-match / loading / error states ───────────────────────── */
 
 .log-viewer-empty {
   display: flex;
@@ -69,6 +69,11 @@
 
 .log-viewer-loading-text {
   color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.log-viewer-error {
+  color: var(--json-string-color);
   font-size: 13px;
 }
 
