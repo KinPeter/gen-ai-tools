@@ -38,12 +38,19 @@ export function handleImages(baseDir, req, res) {
   }
 
   const contentType = getContentType(resolved);
-  const stream = fs.createReadStream(resolved);
-  res.writeHead(200, { "Content-Type": contentType });
-  stream.pipe(res);
-  stream.on("error", () => {
-    if (!res.headersSent) {
-      sendError(res, 500, "Failed to read file");
-    }
+
+  // Read before committing a status: once headers are sent, a 500 is no
+  // longer possible, so a read failure would be silently swallowed.
+  let data;
+  try {
+    data = fs.readFileSync(resolved);
+  } catch {
+    return sendError(res, 500, "Failed to read file");
+  }
+
+  res.writeHead(200, {
+    "Content-Type": contentType,
+    "Content-Length": data.length,
   });
+  res.end(data);
 }

@@ -92,6 +92,7 @@ describe("handleImages", () => {
     const state = res._state();
     expect(state.status).toBe(200);
     expect(state.headers["Content-Type"]).toBe("image/png");
+    expect(state.headers["Content-Length"]).toBe(PNG_BYTES.length);
 
     // The body must be the streamed file, not an empty response.
     const delivered = res.bodyBytes();
@@ -99,25 +100,37 @@ describe("handleImages", () => {
     expect(Buffer.compare(delivered, PNG_BYTES)).toBe(0);
   });
 
-  it("swallows a read failure that happens after the headers are sent", async () => {
+  it("returns 500 when the file cannot be read", async () => {
     // A directory named "*.png" passes the extension gate and existsSync, but
-    // createReadStream fails with EISDIR. handle-images.mjs only sends the 500
-    // when `!res.headersSent`, which is never true because writeHead runs
-    // before pipe — see the escalation for the dead branch at
-    // tools-hub/api/dist-browser/handlers/handle-images.mjs:45-46. This test
-    // pins the observable behaviour: the error is not reported.
+    // reading it fails (EISDIR). The response must not be committed as a 200
+    // before the read is attempted, otherwise the failure is swallowed.
     await fs.promises.mkdir(path.join(baseDir, "broken.png"));
 
     const res = mockRes();
     handleImages(baseDir, { url: "/api/dist-browser/images/broken.png" }, res);
-
-    // Allow the stream error event to fire.
-    await new Promise((resolve) => setImmediate(resolve));
+    // The response has to be ended, not left hanging on an open response.
+    await res.waitForEnd();
 
     const state = res._state();
-    expect(state.status).toBe(200);
-    expect(res.headersSent).toBe(true);
-    expect(state.body).toBeNull();
-    expect(res.bodyBytes()).toHaveLength(0);
+    expect(state.status).toBe(500);
+    expect(state.headers["Content-Type"]).toBe("application/json");
+    expect(state.body).toEqual({ error: "Failed to read file" });
+  });
+
+  it("returns 500 when the file exists but cannot be read", async () => {
+    // A stale directory listing (for example after handleTrash moved the file
+    // away) still passes existsSync-adjacent checks only until the read itself
+    // fails; an unreadable file exercises the same path.
+    const locked = path.join(baseDir, "locked.png");
+    await fs.promises.writeFile(locked, "png-bytes");
+    await fs.promises.chmod(locked, 0);
+
+    const res = mockRes();
+    handleImages(baseDir, { url: "/api/dist-browser/images/locked.png" }, res);
+    await res.waitForEnd();
+
+    const state = res._state();
+    expect(state.status).toBe(500);
+    expect(state.body).toEqual({ error: "Failed to read file" });
   });
 });
