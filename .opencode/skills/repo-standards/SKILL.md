@@ -73,3 +73,8 @@ Reviewers must verify, for code added or materially changed in the task:
   `utils`-style file, feature-coupled helpers beside the feature they support.
 - A React component handles one visual concern; split list and edit/detail
   rendering into separate components.
+
+## Temporary files
+
+IMPORTANT: Write your temporary files, probes, debug scripts and anything that is
+not intended to be part of the final code under the `.tmp/` folder in the repo!

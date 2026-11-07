@@ -28,6 +28,8 @@ loads this skill before working, and grades its work against it.
 - Tests mirror the source folder and file structure by default.
 - Deviating from the mirror is acceptable when it makes the test clearer, but
   state the deviation in the test file or your report.
+- IMPORTANT: Write your temporary files, probes, debug scripts and anything that is
+  not intended to be part of the final code under the `.tmp/` folder in the repo!
 
 ## Isolation rules
 

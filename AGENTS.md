@@ -40,8 +40,6 @@ input YAML files for SDXL generation:
 - **image-log-searcher** (subagent) — Searches historical logs with a two-phase
   approach (`agent-tools/log-search.mjs`).
 
-These agents are OpenCode-only (no Claude Code mirrors).
-
 ## Setup
 
 ```sh
@@ -53,22 +51,18 @@ npm install
 
 ## Repo layout
 
-| Directory            | Purpose                                                                                              |
-| -------------------- | ---------------------------------------------------------------------------------------------------- |
-| `comfyui/`           | ComfyUI inference — workflow building, job execution, output handling, log writing.                  |
-| `runpod/`            | RunPod GPU pod lifecycle — create, wait, stop, terminate.                                            |
-| `logging/`           | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.                   |
-| `tools-hub/`         | Local Node HTTP server for static UIs and API routes (serves the dist-browser UI at `/distbrowser`). |
-| `dist-browser/`      | Vite + React browser UI for serving `dist/` outputs.                                                 |
-| `test/`              | Vitest unit and E2E golden-file tests (mirrors source structure).                                    |
-| `comfyui/workflows/` | Base workflow JSON templates (used by the workflow builder).                                         |
-| `comfyui/inputs/`    | Input YAML definitions (prompt sets, LoRA chains, seeds).                                            |
-| `dist/`              | Generated JPG outputs (mirrors `output/` subfolders).                                                |
-| `output/`            | Raw PNG outputs + run logs. All gitignored.                                                          |
+| Directory       | Purpose                                                                             |
+| --------------- | ----------------------------------------------------------------------------------- |
+| `comfyui/`      | ComfyUI inference — workflow building, job execution, output handling, log writing. |
+| `runpod/`       | RunPod GPU pod lifecycle — create, wait, stop, terminate.                           |
+| `logging/`      | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.  |
+| `tools-hub/`    | Local Node HTTP server for static UIs and API routes                                |
+| `dist-browser/` | Vite + React browser UI for serving `dist/` outputs.                                |
+| `test/`         | Vitest unit and E2E golden-file tests (mirrors source structure).                   |
+| `dist/`         | Generated JPG outputs (mirrors `output/` subfolders).                               |
+| `output/`       | Raw PNG outputs + run logs. All gitignored.                                         |
 
 Each module directory has its own `AGENTS.md` with detailed conventions. Scripts are defined in `package.json` — use `npm run <script>` to invoke them.
-
-The logging module is transitioning from **DynamoDB + Lambda** (legacy) to **MongoDB + local scripts** (new primary). See `logging/AGENTS.md` for details.
 
 ## Required QA
 
