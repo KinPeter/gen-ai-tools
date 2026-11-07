@@ -3,5 +3,11 @@
   // Agents are described and configured in their respective .md files.
   "agents": {},
   // Cross-cutting rules go here: default_agent, permissions, skills, mcp.
-  "permissions": [],
+  // Project rules are appended after global rules, and the last match wins,
+  // so these override the user-level { shell, "rm *", ask } rule.
+  "permissions": [
+    { "action": "shell", "resource": "rm .tmp/*", "effect": "allow" },
+    { "action": "shell", "resource": "rm -f .tmp/*", "effect": "allow" },
+    { "action": "shell", "resource": "rm -rf .tmp/*", "effect": "allow" },
+  ],
 }
