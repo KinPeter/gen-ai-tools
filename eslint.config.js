@@ -9,6 +9,7 @@ export default [
       "node_modules/**",
       "coverage/**",
       "dist-browser/dist/**",
+      ".tmp/**",
     ],
   },
   eslint.configs.recommended,

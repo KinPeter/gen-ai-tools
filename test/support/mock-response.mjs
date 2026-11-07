@@ -77,14 +77,16 @@ export function mockRes() {
 
 /**
  * Minimal IncomingMessage. When `body` is given it is sent as JSON chunks,
- * which is what the POST handlers read through `parseBody`.
+ * which is what the POST handlers read through `parseBody`. `host` is the
+ * Host header, used by routes that rebuild the request URL with `new URL()`.
  */
-export function mockReq(url, method = "GET", body) {
+export function mockReq(url, method = "GET", body, host = "localhost:4218") {
   const raw = body === undefined ? undefined : JSON.stringify(body);
 
   return {
     url,
     method,
+    headers: { host },
     on(event, cb) {
       if (event === "data" && raw !== undefined) cb(Buffer.from(raw));
       if (event === "end") cb();

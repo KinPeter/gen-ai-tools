@@ -2,26 +2,23 @@ import {
   findLogEntry,
   normalizeFilename,
 } from "../../../logging/mongodb/find-log.mjs";
-import { getImageLogConnection } from "../../../logging/mongodb/client.mjs";
+import {
+  DbUnavailableError,
+  getImageLogCollection,
+} from "../../utils/index.mjs";
 
 /**
  * Server-compatible wrapper that uses the core functions from
- * logging/mongodb/find-log.mjs (findLogEntry + getImageLogConnection)
- * to avoid the CLI-specific process.exit(1) call in findWithConnection.
+ * logging/mongodb/find-log.mjs (findLogEntry + normalizeFilename) against the
+ * connection opened by the server at startup.
  */
 export async function serverFindLog(input) {
   const strippedFilename = normalizeFilename(input);
   if (!strippedFilename) return null;
 
-  const connection = await getImageLogConnection();
-  try {
-    const entry = await findLogEntry(strippedFilename, connection);
-    return entry;
-  } finally {
-    if (connection.client) {
-      await connection.client.close();
-    }
-  }
+  return findLogEntry(strippedFilename, {
+    collection: getImageLogCollection(),
+  });
 }
 
 /**
@@ -70,9 +67,10 @@ async function serve(req, res) {
     res.write(JSON.stringify(entry));
     res.end();
   } catch (err) {
+    const statusCode = err instanceof DbUnavailableError ? 503 : 500;
     console.error(`Error finding log entry: ${err.message}`);
-    res.statusCode = 500;
-    res.writeHead(500, { "content-type": "application/json" });
+    res.statusCode = statusCode;
+    res.writeHead(statusCode, { "content-type": "application/json" });
     res.write(JSON.stringify({ error: err.message }));
     res.end();
   }

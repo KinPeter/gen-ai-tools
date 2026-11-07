@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 
 import createStaticRoutes from "./static/index.mjs";
 import apiRoutes from "./api/index.mjs";
+import { closeDb, openDb } from "./utils/index.mjs";
 
 /**
  * Creates the tools-hub HTTP server.
@@ -40,21 +41,47 @@ export function createServerInstance(options = {}) {
   });
 }
 
-export async function start(port) {
-  const server = createServerInstance();
+/**
+ * Opens the shared MongoDB connection. A failure is logged rather than
+ * thrown, so the server still serves every route that does not need the
+ * database; database-backed routes answer 503 instead.
+ */
+async function connectDatabase() {
+  try {
+    await openDb();
+  } catch (err) {
+    console.warn(
+      `tools-hub: MongoDB unavailable (${err.message}) — ` +
+        "database-backed API routes will return 503",
+    );
+  }
+}
 
-  await new Promise((resolve) => {
+function listen(server, port) {
+  return new Promise((resolve) => {
     server.listen(port, resolve);
-    console.log(`tools-hub listening on port ${port}`);
   });
+}
 
-  return function stop() {
-    return new Promise((resolve) => {
-      server.close(() => {
-        console.log("tools-hub stopped");
-        resolve();
-      });
+function closeServer(server) {
+  return new Promise((resolve) => {
+    server.close(() => {
+      console.log("\ntools-hub stopped");
+      resolve();
     });
+  });
+}
+
+export async function start(port) {
+  await connectDatabase();
+
+  const server = createServerInstance();
+  await listen(server, port);
+  console.log(`tools-hub listening on port ${port}`);
+
+  return async function stop() {
+    await closeServer(server);
+    await closeDb();
   };
 }
 

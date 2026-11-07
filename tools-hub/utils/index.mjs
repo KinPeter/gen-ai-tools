@@ -13,6 +13,13 @@ export {
   SKIP_UI_BUILD_ENV_VAR,
 } from "./constants.mjs";
 export { normalizePathSegment, resolveBase, getContentType } from "./file.mjs";
+export {
+  DbUnavailableError,
+  closeDb,
+  getCollection,
+  getImageLogCollection,
+  openDb,
+} from "./db.mjs";
 export { sendJSON, sendError } from "./http.mjs";
 export { resolveUp, resolveRepoRoot, distBrowserUiPaths } from "./path.mjs";
 export { parseBody } from "./request.mjs";

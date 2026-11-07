@@ -11,9 +11,9 @@ lightweight way to run UIs and API routes without external dependencies.
 ### Core concepts
 
 **tools-hub** is a single-process HTTP server built on Node's built-in
-`http` module. It has zero external runtime dependencies — no Express, no
-MongoDB driver at the server level (that lives in the logging module). It
-loads configuration from `.env` via `dotenv/config`.
+`http` module. It has no web framework — no Express — and its only external
+runtime dependency is the `mongodb` driver, held by a single shared connection
+in `utils/db.mjs`. It loads configuration from `.env` via `dotenv/config`.
 
 The server has two layers of routing:
 
@@ -80,6 +80,16 @@ API routes are organized under `api/` with subfolders per domain
 (e.g. `api/logging/` for all logging-related endpoints). Each module
 is a self-contained file that exports a factory function.
 
+### Shared MongoDB connection
+
+`utils/db.mjs` owns the database lifecycle: `start()` calls `openDb()` before
+listening and the shutdown handler calls `closeDb()` after the server stops.
+Handlers never create, receive or close a connection — they import a named
+collection getter (`getImageLogCollection()`) from the utils barrel and use it
+directly. Collection names and connection options live in `db.mjs`; add one
+named getter per new collection. If the connection could not be opened at
+startup, every getter throws `DbUnavailableError` and the route answers 503.
+
 ### Path resolution
 
 The repo uses a shared `resolveUp()` helper that walks up a given number of
@@ -105,11 +115,13 @@ The server is started by `index.mjs` which:
    (`static/distbrowser/ui-build.mjs`) unless
    `TOOLS_HUB_SKIP_UI_BUILD` is set to `1`/`true`/`yes`. A failing build is
    logged, not thrown, so existing artifacts are still served.
-4. Calls `start(port)` which creates the server instance and listens.
+4. Calls `start(port)` which opens the shared MongoDB connection
+   (best-effort), creates the server instance and listens.
 5. Installs `SIGINT` and `SIGTERM` handlers that gracefully stop the server.
 
-The `start()` function returns a `stop()` function for clean shutdown. The
-server process terminates cleanly when both handlers fire.
+The `start()` function returns a `stop()` function for clean shutdown: it
+closes the HTTP server, then the MongoDB connection. The server process
+terminates cleanly when both handlers fire.
 
 ### UI build
 
@@ -127,8 +139,9 @@ is `4218`. The `.env` file should set this if different from the default.
 
 ### Dependencies
 
-- **Zero runtime dependencies** — uses only Node built-ins (`http`, `fs`,
-  `path`, `url`) plus `dotenv` (dev dependency, loaded via `dotenv/config`).
+- **Minimal dependencies** — Node built-ins (`http`, `fs`, `path`, `url`) plus
+  the `mongodb` driver for the shared connection in `utils/db.mjs`. `dotenv`
+  and Vite are dev dependencies.
 - **Low-level module imports** — API routes import directly into `logging/`,
   `runpod/`, and other repo modules using relative paths. No coupling to the
   tools-hub structure on the dependency side.
