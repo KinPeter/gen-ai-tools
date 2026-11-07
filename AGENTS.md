@@ -51,16 +51,17 @@ npm install
 
 ## Repo layout
 
-| Directory       | Purpose                                                                             |
-| --------------- | ----------------------------------------------------------------------------------- |
-| `comfyui/`      | ComfyUI inference — workflow building, job execution, output handling, log writing. |
-| `runpod/`       | RunPod GPU pod lifecycle — create, wait, stop, terminate.                           |
-| `logging/`      | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.  |
-| `tools-hub/`    | Local Node HTTP server for static UIs and API routes                                |
-| `dist-browser/` | Vite + React browser UI for serving `dist/` outputs.                                |
-| `test/`         | Vitest unit and E2E golden-file tests (mirrors source structure).                   |
-| `dist/`         | Generated JPG outputs (mirrors `output/` subfolders).                               |
-| `output/`       | Raw PNG outputs + run logs. All gitignored.                                         |
+| Directory        | Purpose                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| `comfyui/`       | ComfyUI inference — workflow building, job execution, output handling, log writing. |
+| `runpod/`        | RunPod GPU pod lifecycle — create, wait, stop, terminate.                           |
+| `logging/`       | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.  |
+| `tools-hub/`     | Local Node HTTP server for static UIs and API routes                                |
+| `dist-browser/`  | Vite + React browser UI for serving `dist/` outputs.                                |
+| `test/`          | Vitest unit and E2E golden-file tests (mirrors source structure).                   |
+| `shell-scripts/` | Bash helpers registered on the shell by `session.sh` (repo root).                   |
+| `dist/`          | Generated JPG outputs (mirrors `output/` subfolders).                               |
+| `output/`        | Raw PNG outputs + run logs. All gitignored.                                         |
 
 Each module directory has its own `AGENTS.md` with detailed conventions. Scripts are defined in `package.json` — use `npm run <script>` to invoke them.
 

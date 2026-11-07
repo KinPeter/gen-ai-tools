@@ -2,173 +2,131 @@
 
 ## Purpose
 
-A plain Node.js HTTP server for serving static UIs and API endpoints locally.
-It acts as the local counterpart to the `ai-gateway/` stack, providing a
-lightweight way to run UIs and API routes without external dependencies.
+A plain Node.js HTTP server for serving the local browser UIs and JSON API
+routes. It is the local counterpart to the planned `ai-gateway/` stack.
 
 ## Architecture
 
-### Core concepts
+**tools-hub** is a single-process server built on Node's `http` module — no
+Express, no framework. Runtime dependencies: `dotenv` and `mongodb`. Vite is a
+devDependency, imported lazily by the UI build. Configuration comes from `.env`
+via `dotenv/config`.
 
-**tools-hub** is a single-process HTTP server built on Node's built-in
-`http` module. It has no web framework — no Express — and its only external
-runtime dependency is the `mongodb` driver, held by a single shared connection
-in `utils/db.mjs`. It loads configuration from `.env` via `dotenv/config`.
+Routing is two flat lists checked in order, first match wins, then a plain 404:
 
-The server has two layers of routing:
+1. **Static UI routes** — mounted at clean paths (`/logfinder`, `/distbrowser`,
+   `/assets`).
+2. **API routes** — mounted under `/api/<module>`.
 
-1. **Static UI routes** — serve HTML (and other static assets) for browser-based
-   tools like the Log Finder UI. These mount at clean paths (e.g. `/logfinder`).
-2. **API routes** — handle structured requests (typically JSON) and proxy to
-   lower-level modules (currently MongoDB-backed logging). These mount under
-   `/api/<module>`.
+### Route contract
 
-### Routing model
+Every route, static or API, is `{ testUrl, serve }`:
 
-Every route — whether static or API — follows the same interface: a function
-that returns `{ testUrl, serve }`.
+- `testUrl(url)` — raw request URL string (query string included). Returns
+  whether the route handles it.
+- `serve(req, res)` — raw Node `IncomingMessage` / `ServerResponse`. Sets status
+  and headers, writes the body.
 
-- `testUrl(url)` — receives the raw request URL string. Returns `true` if the
-  route should handle this request. URL query strings are part of the URL, so
-  route matchers should account for them (e.g. `/api/logging/find-log?filename=x`).
-- `serve(req, res)` — receives the raw Node `IncomingMessage` and `ServerResponse`
-  objects. Sets `statusCode`, headers, and writes the body.
-
-The server iterates static routes first, then API routes, stopping at the first
-match. Unmatched requests fall through to a default 404.
+Routes are created by factory functions, not classes, so they can carry their own
+state (paths, dist dir) without globals. `static/index.mjs` builds the static
+registry via `createStaticRoutes(options)`; `api/index.mjs` exports a module-level
+array. Register new routes in the matching list — order sets precedence.
 
 ### Static UIs
 
-Static UI routes serve pre-built HTML files from the repository. The route
-modules live under `static/<name>/` and each route is factory-function based —
-it returns a new `{ testUrl, serve }` pair so routes can carry their own state
-(config paths, MIME types, etc.). The files those modules serve live elsewhere:
-`assets/` serves `tools-hub/assets/`, and `logfinder/` serves
-`logging/logfinder-ui/index.html`.
+| Route          | Source                                   | Notes                                                                                                                                         |
+| -------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `assets/`      | `tools-hub/assets/`                      | Any file under `/assets/`, 404 on missing                                                                                                     |
+| `logfinder/`   | `logging/logfinder-ui/index.html`        | Serves the same HTML for every `/logfinder` sub-path                                                                                          |
+| `distbrowser/` | `dist-browser/dist/` (Vite build output) | SPA fallback to `index.html` only for genuine 404s; traversal → 403, read failure → 500, non-GET/HEAD → 405, no build → 404 with a build hint |
 
-Static UIs are mounted at clean paths without a `/static/` prefix. The route
-registry is created once at server start and cached.
+The dist-browser dist directory comes from `distBrowserUiPaths()` in
+`utils/path.mjs`; `createStaticRoutes({ distBrowserUiDistDir })` and
+`createServerInstance(options)` override it (used by the tests with a fixture).
+The Vite `base` is `/distbrowser/` (from `utils/constants.mjs`) so built asset
+URLs match the mount path; the Vite dev server uses `base: "/"` and proxies
+`/api` to tools-hub.
 
-The `distbrowser` route serves the Vite build output found in
-`dist-browser/dist/` at `/distbrowser`, including assets and an SPA fallback to
-`index.html` for unknown sub-paths. Its Vite `base` is `/distbrowser/` (defined
-in `tools-hub/utils/constants.mjs`) so built asset URLs match the mount path.
-The fallback applies only to genuine "not found" requests: traversal attempts
-return 403 and read failures return 500 instead of being masked by
-`index.html`. Only `GET` and `HEAD` are served; other methods return 405. When
-the UI has not been built the route answers 404 with a hint on how to build it.
-
-The directory of the build output comes from `uiPaths()` in
-`utils/path.mjs`; `createStaticRoutes({ distBrowserUiDistDir })` (and
-`createServerInstance(options)`) can override it, which is what the tests use
-to point the route at a temporary fixture.
-
-MIME types for every static response come from one shared map in
-`utils/file.mjs` (`getContentType`), which includes `svg`, `webp`, `gif`,
-`txt`, `mjs` and `woff2` and adds `; charset=utf-8` to text types.
+All MIME types come from one map in `utils/file.mjs` (`getContentType`); text
+types carry `; charset=utf-8`, unknown extensions fall back to
+`application/octet-stream`. Files are read from disk per request — no caching.
 
 ### API routes
 
-API routes follow the same `{ testUrl, serve }` interface but handle structured
-data. They typically:
+`api/` has one subfolder per domain, handlers grouped under `handlers/`:
 
-1. Parse the URL (using `new URL()` for query string access).
-2. Call into domain logic (e.g. MongoDB queries) via shared helpers.
-3. Set `Content-Type` and write JSON responses.
+- `api/logging/find-log.mjs` — `GET /api/logging/find-log?filename=<image>`.
+  Delegates to `logging/mongodb/find-log.mjs` (`findLogEntry` +
+  `normalizeFilename`). 400 without the param, 404 when no entry, 503 when the
+  database is unavailable.
+- `api/dist-browser/` — `fs` (directory listing of `dist/`, folders first, image
+  entries only), `images` (raw image bytes), `trash` (POST `{ paths: [...] }` →
+  moves into `dist/.trash/`, renaming on collision, returns `{ ok, errors }`).
+  All three take `baseDir` (default repo-root `dist/`) and reject paths that
+  escape it with 403.
 
-API routes are organized under `api/` with subfolders per domain
-(e.g. `api/logging/` for all logging-related endpoints). Each module
-is a self-contained file that exports a factory function.
+Handlers use `sendJSON` / `sendError` from `utils/http.mjs`.
 
 ### Shared MongoDB connection
 
-`utils/db.mjs` owns the database lifecycle: `start()` calls `openDb()` before
-listening and the shutdown handler calls `closeDb()` after the server stops.
-Handlers never create, receive or close a connection — they import a named
-collection getter (`getImageLogCollection()`) from the utils barrel and use it
-directly. Collection names and connection options live in `db.mjs`; add one
-named getter per new collection. If the connection could not be opened at
-startup, every getter throws `DbUnavailableError` and the route answers 503.
-
-### Path resolution
-
-The repo uses a shared `resolveUp()` helper that walks up a given number of
-parent directories from a file path. This replaces deeply nested `dirname()`
-calls and makes it easy to resolve paths relative to the repository root from
-any depth. A convenience `resolveRepoRoot()` is also available.
+`utils/db.mjs` owns the lifecycle: `start()` calls `openDb()` before listening,
+the shutdown handler calls `closeDb()` after the server stops. Handlers never
+create, receive or close a connection — they import a named collection getter
+(`getImageLogCollection()`) from the utils barrel. Add one named getter per new
+collection (`getCollection(name)` is internal). Database name `gen-ai`,
+collection `image-logs`, URI from `MONGODB_URI`. If `openDb()` fails at startup
+the server still runs; every getter then throws `DbUnavailableError` and the
+route answers 503.
 
 ### Shared utils
 
-Shared helpers live in `utils/` (one file per concern: `path.mjs`, `file.mjs`,
-`http.mjs`, `request.mjs`, `constants.mjs`). `utils/index.mjs` is the single
-export surface: every consumer inside `tools-hub/` imports from that barrel
-rather than from a specific util file. Add new helpers to their own module and
-re-export them from `index.mjs`.
+`utils/` is one file per concern (`path.mjs`, `file.mjs`, `http.mjs`,
+`request.mjs`, `db.mjs`, `constants.mjs`) and `utils/index.mjs` is the only
+export surface — consumers inside `tools-hub/` import from the barrel, never
+from a util file directly. Put new helpers in their own module and re-export them
+from `index.mjs`.
+
+Path helpers: `resolveUp(file, levels)` walks up N directories (replaces nested
+`dirname()` calls), `resolveRepoRoot(relPath)` resolves against the repo root,
+and `resolveBase(baseDir, relPath)` returns `{ resolved, safe }` with traversal
+protection. `parseBody(req)` caps request bodies at `MAX_BODY_SIZE` (1 MB).
+`IMAGE_EXTENSIONS` (`jpg`, `jpeg`, `png`) is shared with the UI and imported from
+`dist-browser/src/utils/is-image.mjs`.
 
 ### Lifecycle
 
-The server is started by `index.mjs` which:
+`index.mjs` loads `.env`, builds the React app (`static/distbrowser/ui-build.mjs`,
+skipped when `TOOLS_HUB_SKIP_UI_BUILD` is `1`/`true`/`yes`; a failed build is
+logged, not thrown, so existing artifacts still serve), then calls
+`start(port)` — opens the database (best-effort), creates the server, listens.
+`start()` returns `stop()`, which closes the HTTP server and the database
+connection; `SIGINT`/`SIGTERM` call it.
 
-1. Loads `.env` (dotenv/config, top-level).
-2. Reads `TOOLS_HUB_PORT` env var (default 4218).
-3. Builds the dist-browser React app with Vite
-   (`static/distbrowser/ui-build.mjs`) unless
-   `TOOLS_HUB_SKIP_UI_BUILD` is set to `1`/`true`/`yes`. A failing build is
-   logged, not thrown, so existing artifacts are still served.
-4. Calls `start(port)` which opens the shared MongoDB connection
-   (best-effort), creates the server instance and listens.
-5. Installs `SIGINT` and `SIGTERM` handlers that gracefully stop the server.
+`static/distbrowser/ui-build.mjs` is the only place that touches Vite. It calls
+`build()` with `dist-browser/` as the root and writes to `dist-browser/dist/`.
 
-The `start()` function returns a `stop()` function for clean shutdown: it
-closes the HTTP server, then the MongoDB connection. The server process
-terminates cleanly when both handlers fire.
+### Configuration
 
-### UI build
-
-`static/distbrowser/ui-build.mjs` is the only place that talks to Vite:
-it calls `build()` programmatically with `dist-browser/` as the root and writes
-to `dist-browser/dist/`. It sits next to the `distbrowser` route because both
-belong to that UI. Vite is imported lazily so tools-hub keeps zero runtime
-dependencies (Vite stays a devDependency). Set `TOOLS_HUB_SKIP_UI_BUILD=1` for
-fast restarts when the frontend has not changed.
-
-### Port configuration
-
-Port is controlled by the `TOOLS_HUB_PORT` environment variable. The default
-is `4218`. The `.env` file should set this if different from the default.
-
-### Dependencies
-
-- **Minimal dependencies** — Node built-ins (`http`, `fs`, `path`, `url`) plus
-  the `mongodb` driver for the shared connection in `utils/db.mjs`. `dotenv`
-  and Vite are dev dependencies.
-- **Low-level module imports** — API routes import directly into `logging/`,
-  `runpod/`, and other repo modules using relative paths. No coupling to the
-  tools-hub structure on the dependency side.
-
-### CLI
-
-Run the server with:
-
-```
-npm run tools-hub
-```
-
-Or directly:
-
-```
-node tools-hub/index.mjs
-```
+| Env var                   | Default | Effect                                           |
+| ------------------------- | ------- | ------------------------------------------------ |
+| `TOOLS_HUB_PORT`          | `4218`  | Listening port                                   |
+| `TOOLS_HUB_SKIP_UI_BUILD` | unset   | `1`/`true`/`yes` skips the Vite build at startup |
+| `MONGODB_URI`             | —       | Required for DB-backed routes                    |
 
 ## Design principles
 
-- **One interface, two categories.** Static and API routes share the same
-  `{ testUrl, serve }` contract. Add a new route by creating a file and
+- **One interface, two categories.** Static and API routes share the
+  `{ testUrl, serve }` contract; adding a route means adding a file and
   registering it.
-- **Factory functions for state.** Each route is created via a function call,
-  not a class. This keeps routes stateless by default but allows them to carry
-  configuration (e.g. paths, MIME types) without global state.
-- **No premature optimization.** Static files are read from disk on each
-  request. For the current scale this is fine; caching can be added later.
-- **Route order matters.** Static routes are checked before API routes. Add
-  new routes in the appropriate section and in the desired precedence order.
+- **Factories for state.** Routes carry configuration through their factory
+  arguments instead of globals.
+- **Fail explicitly.** Missing files, traversal attempts, unsupported methods
+  and an unavailable database each get their own status (404 / 403 / 405 / 503),
+  never a generic 404 or 500.
+- **Route order matters.** Static routes are matched before API routes.
+
+## Tests
+
+Vitest tests live in `test/tools-hub/` (server, static routes, API handlers,
+utils). `createServerInstance(options)` accepts a fixture dist directory so the
+distbrowser route is testable without a real Vite build.

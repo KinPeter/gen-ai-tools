@@ -21,7 +21,7 @@ Top-level YAML list of **blocks**. Each block is a batch of jobs that share the 
 
 **Mandatory at block level:**
 
-- `base-worflow` — the base comfyui workflow to load.
+- `base-workflow` — the base ComfyUI workflow to load (no default).
 - `prompts` — list of prompt entries.
 
 ---
@@ -245,7 +245,7 @@ This block produces **two prompt groups** — the first with `tries: 2` (and bra
 
 ## Tips
 
-- `base-workflow` is required (defaults to `example-base-workflow`); omit the `.json` suffix for brevity.
+- `base-workflow` is required — a block without it is rejected; omit the `.json` suffix for brevity.
 - Use `seed: "random"` when you want predictable randomness regardless of `tries`.
 - Use brace syntax `{a, b}` when varying **one aspect** across variants.
 - Per-prompt `loras` fully replace block-level LoRAs — this is intentional for targeted chains.

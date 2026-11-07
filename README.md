@@ -1,162 +1,38 @@
 # Generative AI tools
 
-This repo will hold several tools to interact with local image generation and other generative AI.
+A collection of tools for working with generative AI: batch image generation against ComfyUI, a local UI and API hub, log storage and lookup, GPU pod management, and a set of AI-agent workflows that drive them from the terminal. Each module has its own README with the details.
 
-# Comfy Batch
+## Modules
 
-Batch image generation against a ComfyUI backend — local or on a RunPod cloud GPU — plus a small toolkit for managing RunPod pods from the terminal.
+| Module                                   | What it is                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| [comfyui](./comfyui/README.md)           | Runs batch image generation from YAML input files against a local or remote ComfyUI. |
+| [tools-hub](./tools-hub/README.md)       | Local Node HTTP server that serves the browser UIs and JSON API routes.              |
+| [logging](./logging/README.md)           | Stores and queries ComfyUI generation logs in MongoDB.                               |
+| [dist-browser](./dist-browser/README.md) | React app for browsing the generated images and their log entries.                   |
+| [runpod](./runpod/README.md)             | Scripts to create, wait for, stop and terminate RunPod GPU pods.                     |
 
-The main flow: describe any number of prompts in a YAML file, run one command, and get PNGs in `output/`, JPGs in `dist/`, and a live JSON run log. The RunPod scripts are an optional addition: spin up a GPU pod, point the batch at it, tear it down when done.
+## Usage
 
-## Requirements
+Convenience commands for the everyday workflow are registered on your shell by sourcing `session.sh` — see [shell-scripts](./shell-scripts/README.md). All other available scripts and commands are listed in `package.json`.
 
-- Node.js 24 (ES modules, top-level await)
-- A ComfyUI backend: local (`http://127.0.0.1:8188`) or a RunPod pod exposing port `8188`
-- Dependencies: `dotenv`, `yaml`, `sharp` (`npm install`)
+## Agents and workflows
 
-## Quick start
+The agent definitions, commands and skills live in `.opencode/`.
+
+- **Delivery** — `/deliver <requirement or file>` runs a requirement through implementation, independent review and review fixes, ending with QA evidence and a suggested commit message.
+- **Tests** — `/tests <scope>` writes or updates tests, reviews them, and fixes test-side findings.
+- **Image input helpers** — `/image-input` generates ComfyUI batch input YAML files, with subagents that validate the YAML and look up generation logs.
+
+### Agent tools
+
+The CLI scripts the agents call are in [agent-tools](./agent-tools/README.md): validate a batch input file, look up one image's log entry, search the log collection.
+
+## Development
 
 ```sh
 cp .env.example .env   # then fill in values
 npm install
-
-# session shortcuts (current shell only, nothing installed globally)
-source ./session.sh    # or: . ./session.sh
-
-start-pod              # fire up a RunPod GPU pod (optional - skip for local)
-comfy-batch input.example    # run a batch from comfyui/inputs/input.example.yaml
-stop-pod               # stop + terminate the pod when done
-runpod-comfy -p <pod-name> -i <input1>,<input2>,... # runs all the above in sequence (with pod)
-comfy -i <input1>,<input2>,... # run batches locally (no pod)
 ```
 
-`comfyui/batch.mjs` picks the ComfyUI URL from the active pod state file first (`runpod/.active-pod.json`, written by `start-pod`) and falls back to `COMFY_SERVER` from `.env`.
-
-## Tools used
-
-- **ComfyUI API** (`/prompt`, `/history/{id}`, `/view`) — queueing, polling, image download
-- **RunPod REST API v2** — GPU catalog, pod create/get/action
-- **sharp** — PNG to JPG conversion (quality 90)
-- **yaml** — input file parsing (order-preserving)
-- **dotenv** — `.env` config (values are literal, no variable expansion)
-
-## Managed agentic delivery
-
-Use the project-local `/deliver` command in OpenCode or Claude Code to process
-a requirement through implementation, independent review, and review fixes:
-
-```text
-/deliver Add the requested behavior and cover it with tests
-/deliver .tmp/requirement-20261012T123456Z-abc123.md
-```
-
-The workflow leaves commits to you, runs the repository QA gates, and asks you
-to perform manual testing. Review and other generated artifacts are written to
-`.tmp/` with unique UTC-timestamped filenames. OpenCode definitions are in
-`.opencode/`, Claude Code mirrors are in `.claude/`, and both must be kept
-synchronized when agents, skills, commands, or workflow behavior changes.
-
-## Batch usage
-
-```sh
-comfy-batch <input-name>   # reads comfyui/inputs/<input-name>.yaml
-```
-
-Input YAML files live in `comfyui/inputs/`; the path is resolved from the
-project, not the current working directory. Files in subfolders (for example
-`comfyui/inputs/archive/`) are runnable as `comfy-batch archive/<name>`.
-
-### Input YAML
-
-A list of settings blocks. Each block shares its settings across a `prompts` list; per-prompt `tries`/`seed`/`prompt` override the parent:
-
-```yaml
-  - base-workflow: juggernaut-simple-base # comfyui/workflows/<name>.json, required
-  output-folder: rover-city # subfolder of output/
-  filename-prefix: rover
-  steps: 20 # optional, base default otherwise
-  cfg: 3.5 # optional, base default otherwise
-  size: # optional, base default otherwise
-    width: 832
-    height: 1216
-  loras: # optional, builds Lora_1..Lora_N in order
-    - name: nice-lora.safetensors
-      strength: 1
-  clip-skip: -2 # optional, overrides the base's CLIPSetLastLayer
-  prompts:
-    - tries: 4 # optional, default 1; forces random seeds
-      prompt: # list of parts, joined in order
-        - glossy, soft light
-        - woman, {black, blonde, red} hair # a separate prompt is created with the values inside {...}
-        - city background
-      negative-prompt: # optional, same join logic on the base negative prompt
-        - blurry, lowres
-
-    - seed: 12345 # optional; number, "random", or omitted (= random)
-      prompt:
-        - vintage, broken clouds
-        - beach, waves, storm
-```
-
-Rules: `seed` is random unless set to a fixed number (a fixed seed is kept only when `tries` is unset or `1` — `tries > 1` always randomizes). Prompt parts are appended in list order to the base workflow's positive prompt; `negative-prompt` parts work the same way on the base negative prompt (found via the sampler's `negative` link, else `NegativeCLIP_Base`). `loras` (a list of `{name, strength}`, minimum one entry) dynamically creates `Lora_1..Lora_N` `LoraLoader` nodes chained between the checkpoint and clip-skip; both `strength_model` and `strength_clip` get the entry's `strength`; omitted → no LoRAs. `clip-skip` (any number) overrides the base workflow's `CLIPSetLastLayer.stop_at_clip_layer`; omitted → base value kept. Per-prompt `tries`/`seed`/`prompt`/`negative-prompt`/`loras`/`clip-skip` override the parent. The base workflow's seed is never reused.
-
-### Outputs
-
-- `output/<output-folder>/<prefix>_YYYYMMDDHHmmss.png` (extra images in one job get `_<n>`)
-- `dist/<output-folder>/<prefix>_YYYYMMDDHHmmss.jpg` — converted, ready for upload
-- `output/logs/<input-name>_<run-timestamp>.json` — one file per run, entries appended live as images finish. Subfolder inputs keep their relative subfolder: `comfy-batch archive/<name>` writes `output/logs/archive/<name>_<run-timestamp>.json`:
-
-```json
-{
-  "prompt": { "…yaml settings…", "seed": 12345, "prompt": "full positive prompt…", ... },
-  "filename": "rover_20261003212855.png",
-  "outputPath": "…/output/rover-city",
-  "generatedIn": "12:21",
-  "comfyJobId": "52104f5d-…"
-}
-```
-
-### Config (.env)
-
-| Variable                 | Required                     | Description                         |
-| ------------------------ | ---------------------------- | ----------------------------------- |
-| `COMFY_SERVER`           | yes (unless a pod is active) | ComfyUI base URL                    |
-| `COMFY_POLL_INTERVAL_MS` | no (default `5000`)          | History poll interval while waiting |
-| `RUNPOD_API_KEY`         | for RunPod scripts           | RunPod REST API v2 key              |
-
-## RunPod tools (addition)
-
-See [RunPod README](./runpod/README.md)
-
-## Log lookup (DynamoDB + Lambda)
-
-See [Logging README](./logging/README.md)
-
-## Image helper agents (OpenCode)
-
-OpenCode provides a set of image helper agents for working with ComfyUI batch
-input YAML files:
-
-- **image-input-helper** — Primary agent. Generates and refines input YAML files
-  for SDXL batch image generation, using the `/image-input` command.
-- **image-input-validator** (subagent) — Validates YAML files against the batch
-  job schema via `agent-tools/validate-input.mjs`.
-- **image-log-finder** (subagent) — Looks up log entries for specific image files
-  via `agent-tools/lookup-log.mjs`.
-- **image-log-searcher** (subagent) — Searches historical logs with a two-phase
-  approach (text preview → full JSON) via `agent-tools/log-search.mjs`.
-
-These agents are OpenCode-only (no Claude Code mirrors).
-
-## npm scripts
-
-| Script                                   | Command                                                      |
-| ---------------------------------------- | ------------------------------------------------------------ |
-| `npm run comfy-batch -- <input-name>`    | run a batch (or `comfy-batch <input-name>` via `session.sh`) |
-| `npm run start-pod` / `npm run stop-pod` | pod up / down                                                |
-| `npm run convert-all`                    | re-convert all PNGs in `output/`                             |
-| `npm run find-log-from-files`            | look up a run-log entry by image filename in `output/logs/`  |
-| `npm run deploy-find-lambda`             | zip + publish `logging/log-find-lambda.mjs` to AWS Lambda    |
-| `npm run lint`                           | check JavaScript with ESLint                                 |
-| `npm run format`                         | format supported files with Prettier                         |
-| `npm run format:check`                   | verify Prettier formatting                                   |
+Used: Node 24 (ES modules), Vitest, ESLint, Prettier, Vite + React, sharp, yaml, dotenv, MongoDB.
