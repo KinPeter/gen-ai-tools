@@ -32,4 +32,4 @@ This sourcing order puts the leaf commands (`comfy-batch`, `comfy`) in scope bef
 
 ## Changing these files
 
-Edits are picked up by re-sourcing `session.sh` in the current shell. Keep new commands in the file matching their domain, and add them to the `Registered:` line in `session.sh`.
+Edits are picked up by re-sourcing `session.sh` in the current shell. Keep new commands in the file matching their domain, and add them to the `Registered:` block in `session.sh`.

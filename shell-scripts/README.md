@@ -4,9 +4,8 @@ A collection of convenience scripts to register on your active shell. Sourcing `
 
 ```sh
 source ./session.sh
-# Registered: start-pod, stop-pod, comfy-batch <input-name>,
-#             runpod-comfy [-p <image-key>] -i <input1,..>, comfy -i <input1,..>,
-#             thub <start|status|stop>
+# Registered:
+#   ...the list of commands
 ```
 
 ## Commands
