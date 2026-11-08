@@ -8,7 +8,7 @@ Convenience commands for the local workflow, registered on the current shell ses
 
 `session.sh` at the repo root is the only file the user sources. It refuses to run as a script (`bash session.sh`) and then loads the chain:
 
-`session.sh → runpod.sh → runpod-comfy.sh → comfyui.sh`
+`session.sh → runpod.sh → runpod-comfy.sh → comfyui.sh → tools-hub.sh`
 
 This sourcing order puts the leaf commands (`comfy-batch`, `comfy`) in scope before the wrapper (`runpod-comfy`) that calls them.
 
@@ -19,6 +19,7 @@ This sourcing order puts the leaf commands (`comfy-batch`, `comfy`) in scope bef
 | `comfyui.sh`      | `comfy-batch`, `comfy`, `_run_batches` | `_run_batches` is the shared loop used by both batch commands. |
 | `runpod.sh`       | `start-pod`, `stop-pod`                | Wrappers over `npm run start-pod` / `npm run stop-pod`.        |
 | `runpod-comfy.sh` | `runpod-comfy`                         | Pod lifecycle around the shared batch loop.                    |
+| `tools-hub.sh`    | `thub`                                 | `thub start/status/stop` for the local tools-hub server.       |
 
 ## Conventions
 
