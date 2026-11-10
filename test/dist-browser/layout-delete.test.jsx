@@ -212,6 +212,15 @@ function deleteSelected(container) {
   });
 }
 
+// The TopBar refresh button is the layout's only refresh control.
+function refreshButton(container) {
+  return container.querySelector(`.topbar-button[aria-label="Refresh"]`);
+}
+
+function clickRefresh(container) {
+  fireEvent.click(refreshButton(container));
+}
+
 // --- Lifecycle ---
 
 beforeAll(() => {
@@ -340,7 +349,7 @@ describe("Layout delete flow", () => {
     // A log written after the image was selected must be fetched again on refresh.
     state.logEntries.img2 = { filename: "img2", prompt: { text: "second" } };
 
-    fireEvent.click(container.querySelector(".file-browser-refresh"));
+    clickRefresh(container);
 
     await waitFor(() => {
       const logUrls = fetchMock.mock.calls
@@ -379,7 +388,7 @@ describe("Layout delete flow", () => {
 
     state.logEntries.img2 = { filename: "img2", prompt: { text: "second" } };
 
-    fireEvent.click(container.querySelector(".file-browser-refresh"));
+    clickRefresh(container);
 
     await waitFor(() =>
       expect(container.querySelector("pre code").textContent).toContain(
@@ -393,7 +402,7 @@ describe("Layout delete flow", () => {
 
     await waitFor(() => expect(itemByName(container, "img1.png")).toBeTruthy());
 
-    fireEvent.click(container.querySelector(".file-browser-refresh"));
+    clickRefresh(container);
 
     await waitFor(() =>
       expect(

@@ -73,31 +73,3 @@
 }
 
 /* Row styling lives in FileBrowserEntry.css */
-
-.file-browser-footer {
-  padding: 8px;
-  border-top: 1px solid var(--border-color);
-  flex-shrink: 0;
-}
-
-.file-browser-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.file-browser-refresh:hover {
-  background: var(--bg-tertiary);
-}
-
-.file-browser-refresh:active {
-  background: var(--bg-tertiary);
-}

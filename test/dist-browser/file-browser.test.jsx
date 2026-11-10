@@ -37,7 +37,6 @@ function renderFileBrowser(props = {}) {
     onNavigate: vi.fn(),
     onSelect: vi.fn(),
     onDelete: vi.fn(),
-    onRefresh: vi.fn(),
     ...props,
   };
   const result = render(<FileBrowser {...defaultProps} />);
@@ -568,17 +567,12 @@ describe("FileBrowser", () => {
     });
   });
 
-  describe("refresh button", () => {
-    it("renders a refresh button in the footer", () => {
+  describe("no refresh footer", () => {
+    // Refreshing lives in the TopBar only; the file-browser footer was removed.
+    it("renders no footer or refresh button", () => {
       const { container } = renderFileBrowser();
-      const refreshButton = container.querySelector(".file-browser-refresh");
-      expect(refreshButton).toBeTruthy();
-    });
-
-    it("refresh button has correct aria-label", () => {
-      const { container } = renderFileBrowser();
-      const refreshButton = container.querySelector(".file-browser-refresh");
-      expect(refreshButton.getAttribute("aria-label")).toBe("Refresh folder");
+      expect(container.querySelector(".file-browser-footer")).toBeNull();
+      expect(container.querySelector(".file-browser-refresh")).toBeNull();
     });
   });
 });

@@ -6,9 +6,9 @@ import { FileBrowserEntry } from "./FileBrowserEntry";
 import "./FileBrowser.css";
 
 /**
- * Presentational shell of the file browser: loading/error banners, the scrollable
- * list of entries, and the refresh footer. The interaction details live in the
- * hooks below and in `FileBrowserEntry`; the row itself is a component of its own.
+ * Presentational shell of the file browser: loading/error banners and the
+ * scrollable list of entries. The interaction details live in the hooks below
+ * and in `FileBrowserEntry`; the row itself is a component of its own.
  */
 export function FileBrowser({
   currentPath,
@@ -19,7 +19,6 @@ export function FileBrowser({
   onNavigate,
   onSelect,
   onDelete,
-  onRefresh,
 }) {
   const listRef = useRef(null);
 
@@ -78,18 +77,6 @@ export function FileBrowser({
             />
           ))
         )}
-      </div>
-
-      {/* Footer: refresh hint */}
-      <div className="file-browser-footer">
-        <button
-          className="file-browser-refresh"
-          onClick={() => onRefresh?.()}
-          aria-label="Refresh folder"
-          title="Refresh"
-        >
-          ↻ Refresh
-        </button>
       </div>
     </div>
   );

@@ -39,7 +39,7 @@ export function Layout() {
       <TopBar onRefresh={handleRefresh} currentPath={currentPath} />
       <div className="columns-container">
         <Column
-          title="File Browser"
+          label="File Browser"
           flexBasis={widths[0]}
           style={{ minWidth: minWidths[0] }}
         >
@@ -52,12 +52,11 @@ export function Layout() {
             onNavigate={navigateTo}
             onSelect={browser.selectEntry}
             onDelete={browser.deleteEntry}
-            onRefresh={handleRefresh}
           />
         </Column>
         <ResizeHandle index={0} width={widths[0]} onStartDrag={startDrag} />
         <Column
-          title="Image Viewer"
+          label="Image Viewer"
           flexBasis={widths[1]}
           style={{ minWidth: minWidths[1] }}
         >
@@ -68,7 +67,7 @@ export function Layout() {
         </Column>
         <ResizeHandle index={1} width={widths[1]} onStartDrag={startDrag} />
         <Column
-          title="Log Viewer"
+          label="Log Viewer"
           flexBasis="auto"
           style={{
             flex: 1,

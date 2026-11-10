@@ -24,7 +24,6 @@ function renderFileBrowser(props = {}) {
     onNavigate: vi.fn(),
     onSelect: vi.fn(),
     onDelete: vi.fn(),
-    onRefresh: vi.fn(),
     ...props,
   };
 
