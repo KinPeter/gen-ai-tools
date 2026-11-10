@@ -5,20 +5,21 @@
   overflow: hidden;
 }
 
+/* Colour and size come from the shared status rule in index.css */
 .file-browser-loading {
   padding: 12px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
 }
 
+/* Deliberate variant of the status line: a bordered alert, hence its own
+   colour and size */
 .file-browser-error {
   margin: 8px 12px;
   padding: 8px 12px;
-  background: var(--error-bg);
-  color: var(--error-text);
-  border: 1px solid var(--error-border);
-  border-radius: 4px;
+  background: var(--panel);
+  color: var(--error);
+  border: 1px solid var(--error);
+  border-radius: 6px;
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -33,7 +34,7 @@
   margin: -2px -4px;
 }
 
-/* Custom thin scrollbar — follows theme */
+/* Custom thin scrollbar — follows the shared theme tokens */
 .file-browser-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -56,7 +57,7 @@
 }
 
 .file-browser-list:focus-visible {
-  box-shadow: 0 0 0 2px var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 @supports selector(:focus-visible) {
@@ -65,11 +66,10 @@
   }
 }
 
+/* Colour and size come from the shared status rule in index.css */
 .file-browser-empty {
   padding: 24px 12px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
 }
 
 /* Row styling lives in FileBrowserEntry.css */

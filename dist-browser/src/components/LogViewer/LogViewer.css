@@ -13,23 +13,10 @@
 
 /* ── Code block ─────────────────────────────────────────────────────── */
 
+/* The shared `.result` class from /assets/theme.css provides the dark surface,
+   text colour, monospace face and wrapping, so only the column fit is here. */
 .log-viewer-code {
-  margin: 0;
-  padding: 12px;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
   width: 100%;
-  box-sizing: border-box;
 }
 
 /* Ensure the <code> element inherits the same styles */
@@ -57,48 +44,40 @@
   height: 100%;
 }
 
-.log-viewer-empty-text {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.log-viewer-no-match {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.log-viewer-loading-text {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
+/* The muted loading, empty and no-match lines use the shared status rule in
+   index.css; only the error variant is app-specific. */
 .log-viewer-error {
-  color: var(--json-string-color);
+  color: var(--error);
   font-size: 13px;
 }
 
 /* ── JSON token colorization ─────────────────────────────────────────── */
 
+/* The log panel is the shared dark `.result` surface in both themes, so the
+   token colours from /assets/syntax.css are legible as-is; only the local
+   token names are mapped to them. Structural punctuation has no shared
+   --tok-* token, so it uses the result panel's own text colour rather than the
+   light-surface muted tone, which would be too faint on the dark panel. */
 .log-viewer-code .log-viewer-token-key {
-  color: var(--json-key-color);
+  color: var(--tok-key);
 }
 
 .log-viewer-code .log-viewer-token-string {
-  color: var(--json-string-color);
+  color: var(--tok-str);
 }
 
 .log-viewer-code .log-viewer-token-value {
-  color: var(--json-number-color);
-}
-
-.log-viewer-code .log-viewer-token-structural {
-  color: var(--json-structural-color);
+  color: var(--tok-num);
 }
 
 .log-viewer-code .log-viewer-token-boolean {
-  color: var(--json-boolean-color);
+  color: var(--tok-bool);
 }
 
 .log-viewer-code .log-viewer-token-null {
-  color: var(--json-null-color);
+  color: var(--tok-null);
+}
+
+.log-viewer-code .log-viewer-token-structural {
+  color: var(--result-text);
 }

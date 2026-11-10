@@ -61,7 +61,7 @@ export function LogViewer({ log = {} }) {
 
   return (
     <div className="log-viewer-content">
-      <pre className="log-viewer-code">
+      <pre className="log-viewer-code result">
         <code>{colorizeJsonText(logText)}</code>
       </pre>
     </div>

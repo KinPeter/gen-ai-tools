@@ -8,12 +8,13 @@ const NUMBER = /-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
 const STRUCT = /[{}[\]:,]/g;
 
 /**
- * Tokenize a JSON string and return React elements with color spans.
+ * Tokenize a JSON string and return React elements with token spans.
  *
- * Keys (strings followed by `:`) get `--json-key-color`.
- * String values get `--json-string-color`, numbers `--json-number-color`,
- * booleans `--json-boolean-color`, null `--json-null-color`.
- * Structural tokens get `--json-structural-color`; whitespace is plain.
+ * Keys (strings followed by `:`) get the key token, string values the string
+ * token, numbers the value token, booleans the boolean token and null the null
+ * token. Structural punctuation gets its own token; whitespace is plain.
+ * LogViewer.css maps these token classes to the shared `--tok-*` colours from
+ * /assets/syntax.css.
  *
  * Unmatched whitespace between tokens is rendered as plain text nodes
  * so that the `<pre>` element preserves original formatting.

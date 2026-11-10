@@ -1,7 +1,7 @@
 .resize-handle {
   width: var(--handle-width);
   min-width: var(--handle-width);
-  background: var(--border-color);
+  background: var(--border);
   cursor: col-resize;
   flex-shrink: 0;
   transition: background 0.15s ease;
@@ -10,12 +10,12 @@
 
 .resize-handle:hover,
 .resize-handle:focus {
-  background: var(--selection-text);
+  background: var(--accent);
   outline: none;
 }
 
 .resize-handle:focus-visible {
-  outline: 2px solid var(--selection-text);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 

@@ -13,21 +13,27 @@
   outline: none;
 }
 
-.file-browser-item:hover {
-  background: var(--bg-tertiary);
-}
-
+/* Hovering and the keyboard-selected hover state look the same */
+.file-browser-item:hover,
 .file-browser-item--hovered {
-  background: var(--bg-tertiary);
+  background: var(--row-hover);
 }
 
 .file-browser-item--selected {
-  background: var(--selection-bg);
-  color: var(--selection-text);
+  background: var(--accent);
+  color: var(--accent-text);
 }
 
 .file-browser-item--selected:hover {
-  background: var(--selection-bg);
+  background: var(--accent-hover);
+}
+
+/* Icons, the parent arrow and the parent link follow the selected row's text
+   colour, otherwise they would sit muted on the accent-filled row. */
+.file-browser-item--selected .file-browser-icon,
+.file-browser-item--selected .file-browser-icon-parent,
+.file-browser-item--selected .file-browser-name--parent {
+  color: var(--accent-text);
 }
 
 .file-browser-icon {
@@ -36,7 +42,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 
 .file-browser-icon svg {
@@ -48,7 +54,7 @@
 .file-browser-icon-parent {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--muted);
   border: none;
   background: none;
   cursor: pointer;
@@ -58,7 +64,14 @@
 }
 
 .file-browser-icon-parent:focus-visible {
-  color: var(--accent-color);
+  color: var(--accent);
+}
+
+/* On a selected row the accent glyph would vanish into the accent fill, so
+   focus is shown with an underline in the row's own text colour instead. */
+.file-browser-item--selected .file-browser-icon-parent:focus-visible {
+  color: var(--accent-text);
+  text-decoration: underline;
 }
 
 .file-browser-name {
@@ -70,5 +83,5 @@
 
 .file-browser-name--parent {
   font-style: italic;
-  color: var(--text-secondary);
+  color: var(--muted);
 }

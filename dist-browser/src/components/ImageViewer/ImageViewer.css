@@ -18,11 +18,10 @@
 
 /* ── Empty state ────────────────────────────────────────────────────────── */
 
+/* Colour and size come from the shared status rule in index.css */
 .image-viewer-empty {
   padding: 24px 12px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
 }
 
 /* ── Loading ────────────────────────────────────────────────────────────── */
@@ -37,8 +36,8 @@
 .image-viewer-spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--text-secondary);
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: image-viewer-spin 0.8s linear infinite;
 }
@@ -57,22 +56,17 @@
   gap: 8px;
   padding: 24px 12px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
 }
 
+/* Geometry only; the shared hover/active recipe lives in index.css */
 .image-viewer-retry {
   padding: 4px 12px;
   font-size: 13px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
   cursor: pointer;
-}
-
-.image-viewer-retry:hover {
-  background: var(--bg-tertiary);
 }
 
 /* ── Filename label (below image) ───────────────────────────────────────── */
@@ -80,7 +74,7 @@
 .image-viewer-filename-label {
   padding: 8px 0 4px;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--muted);
   font-size: 11px;
   word-break: break-word;
   width: 100%;
@@ -88,17 +82,19 @@
 
 /* ── Filename overlay ───────────────────────────────────────────────────── */
 
+/* The overlay sits on the image itself, so it uses the shared dark result
+   surface, which is the same in both themes. */
 .image-viewer-filename-overlay {
   position: absolute;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   width: fit-content;
-  background-color: rgba(0, 0, 0, 0.6);
-  color: #fff;
+  background: var(--result-bg);
+  color: var(--result-text);
   font-size: 11px;
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   text-align: center;
   word-break: break-word;
 }

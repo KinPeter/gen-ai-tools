@@ -11,7 +11,10 @@ npm run dist-browser:dev       # Vite dev server with hot reload (port 5173)
 npm run dist-browser:build     # manual build into dist-browser/dist/
 ```
 
-The dev server proxies `/api` to tools-hub, so tools-hub must be running. Set
+The dev server proxies `/api` to tools-hub, so tools-hub must be running. The
+shared styles (`/assets/theme.css`, `/assets/syntax.css`) and the favicons come
+from the tools-hub `/assets` route, which the dev server does not proxy — open
+the built UI through `npm run tools-hub` to see the theme. Set
 `TOOLS_HUB_PORT` to change the tools-hub port, `TOOLS_HUB_SKIP_UI_BUILD=1` to
 skip the startup build.
 

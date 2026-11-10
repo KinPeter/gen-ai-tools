@@ -15,6 +15,11 @@ ComfyUI generation log for the selected image. tools-hub serves the built app at
 `vite.config.mjs` reads the build base path from `tools-hub/utils/constants.mjs`, so
 the mount path and the asset URLs cannot drift apart.
 
+The shared theme and syntax styles are linked from the tools-hub `/assets` route
+(`/assets/theme.css`, `/assets/syntax.css`). That route is only served by
+tools-hub — the Vite dev server proxies `/api` alone, so `dist-browser:dev`
+renders without the shared palette. View the styled UI through `npm run tools-hub`.
+
 ## Layout
 
 | Path              | Purpose                                                                                                                                                                                                                |

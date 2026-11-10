@@ -1,6 +1,6 @@
 /**
- * Row icons for the file browser list. Both use `currentColor`, so the theme
- * variables defined in index.css keep them in sync with the rest of the UI.
+ * Row icons for the file browser list. Both use `currentColor`, so the shared
+ * theme tokens keep them in sync with the rest of the UI.
  */
 
 export function FolderIcon() {
