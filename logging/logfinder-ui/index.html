@@ -339,7 +339,7 @@
     <main>
       <h1>Log Finder</h1>
       <p class="subtitle">
-        Paste an image filename or path, or drop the image anywhere.
+        Paste an image filename or path, or drop the image anywhere to search.
       </p>
       <div class="controls">
         <input
@@ -448,7 +448,16 @@
         input.focus();
       }
 
+      // Both the browse picker and the drop handler take the first file from a
+      // FileList; selection and search differ between the two paths.
+      function firstName(files) {
+        return files && files[0] ? files[0].name : null;
+      }
+
       async function lookup() {
+        // The Find button is disabled while a search runs, so this also blocks
+        // Enter-key and drop triggers from starting an overlapping lookup.
+        if (findButton.disabled) return;
         const key = extractKey(input.value);
         if (isEmptyKey(input.value, key)) {
           resultEl.textContent = "";
@@ -506,8 +515,9 @@
 
       browseButton.addEventListener("click", () => fileInput.click());
       fileInput.addEventListener("change", () => {
-        if (fileInput.files && fileInput.files[0]) {
-          fillFromFileName(fileInput.files[0].name);
+        const name = firstName(fileInput.files);
+        if (name !== null) {
+          fillFromFileName(name);
         }
         fileInput.value = "";
       });
@@ -521,14 +531,25 @@
           document.body.classList.remove("dragging");
         }
       });
-      document.addEventListener("drop", (event) => {
+
+      // A dropped file fills the field and searches immediately, so the Find
+      // button is not needed. Non-file drops (selected text, links) carry no
+      // files and only report the problem; with several files the first is
+      // used, like the browse picker above.
+      function handleFileDrop(event) {
         event.preventDefault();
         document.body.classList.remove("dragging");
-        const files = event.dataTransfer ? event.dataTransfer.files : null;
-        if (files && files[0]) {
-          fillFromFileName(files[0].name);
+        const name = firstName(
+          event.dataTransfer ? event.dataTransfer.files : null,
+        );
+        if (name === null) {
+          setStatus("Nothing to search: drop an image file.", true);
+          return;
         }
-      });
+        fillFromFileName(name);
+        lookup();
+      }
+      document.addEventListener("drop", handleFileDrop);
     </script>
   </body>
 </html>
