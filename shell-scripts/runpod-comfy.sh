@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Local session helper — full managed workflow (pod + batch loop).
-# Depends on: start-pod, stop-pod, comfy-batch, _run_batches (all from sourcing chain).
-source "$(dirname "${BASH_SOURCE[0]}")/comfyui.sh"
+# Source-only library — full managed workflow (pod + batch loop).
+# Depends on: start-pod, stop-pod, comfy-batch, _run_batches (all from the sourcing chain).
+# Shell-agnostic (bash 3.2+ and zsh).
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/comfyui.sh"
 
 # Full run: start a pod, batch each input, always stop the pod.
 # Usage: runpod-comfy [-p <image-key>] -i <input1,input2,...>
@@ -26,29 +27,20 @@ runpod-comfy() {
     return 2
   fi
 
-  local -g interrupted=0
-  local -g failed=()
-  trap 'interrupted=1' INT TERM
+  _begin_run
 
   if [[ -n "$pod_image" ]]; then start-pod "$pod_image"; else start-pod; fi
-  local status=$?
-  if (( status != 0 )); then
-    trap - INT TERM
+  # zsh makes `status` read-only (it is $?), so avoid that name.
+  local rc=$?
+  if (( rc != 0 )); then
+    _end_run
     stop-pod # start-pod can fail after creating the pod; never leave it billing
-    return "$status"
+    return "$rc"
   fi
 
   _run_batches "$inputs"
-  trap - INT TERM
+  _end_run
   stop-pod
-  local stop_status=$?
-  if (( interrupted )); then
-    echo "runpod-comfy: interrupted; pod stopped." >&2
-    return 130
-  fi
-  if (( ${#failed[@]} > 0 )); then
-    echo "runpod-comfy: failed inputs: ${failed[*]}" >&2
-    return 1
-  fi
-  return "$stop_status"
+  local stop_rc=$?
+  _report_run_result runpod-comfy "$stop_rc" "interrupted; pod stopped."
 }

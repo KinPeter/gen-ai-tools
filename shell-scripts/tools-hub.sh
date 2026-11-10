@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Local session helper — tools-hub server lifecycle: thub start | status | stop.
-# Loaded by session.sh.
+# Source-only library — tools-hub server lifecycle: thub start | status | stop.
+# Loaded by session.sh; shell-agnostic (bash 3.2+ and zsh).
 
 # Repo root, resolved from this file's location (never the current directory).
-THUB_ROOT="$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")"
+# zsh has no BASH_SOURCE, but $0 is the file being sourced at file scope.
+# `cd`/`pwd -P` are builtins because `realpath` is not available on stock macOS.
+THUB_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd -P)"
 THUB_PORT_DEFAULT=4218
 THUB_PID_FILE="$THUB_ROOT/.tmp/tools-hub.pid"
 THUB_LOG_FILE="$THUB_ROOT/.tmp/tools-hub.log"
@@ -29,12 +31,32 @@ _thub_tracked_pid() {
   return 1
 }
 
+# First tool available for inspecting a listening port: lsof (macOS + most Linux),
+# ss (Linux), nc (last resort). Returns 1 when none exists, so callers report
+# "not found" instead of a 127 command-not-found.
+_thub_listen_tool() {
+  if command -v lsof >/dev/null 2>&1; then printf 'lsof'
+  elif command -v ss >/dev/null 2>&1; then printf 'ss'
+  elif command -v nc >/dev/null 2>&1; then printf 'nc'
+  else return 1
+  fi
+}
+
 # PID of whatever process is holding the port, started by thub or not.
+# `nc` can only say whether a port is open, never who owns it, so it is not
+# usable here.
 _thub_port_pid() {
-  local pid
-  pid="$(ss -lptn "sport = :$1" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1)"
-  pid="${pid#pid=}"
-  if [[ -n "$pid" ]]; then
+  local tool pid=""
+  tool="$(_thub_listen_tool)" || return 1
+  case "$tool" in
+    lsof) pid="$(lsof -iTCP:"$1" -sTCP:LISTEN -P -n 2>/dev/null | awk 'NR>1 {print $2; exit}')" ;;
+    ss)
+      pid="$(ss -lptn "sport = :$1" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1)"
+      pid="${pid#pid=}"
+      ;;
+    *) return 1 ;;
+  esac
+  if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
     printf '%s\n' "$pid"
     return 0
   fi
@@ -43,7 +65,14 @@ _thub_port_pid() {
 
 # True when something is listening on the given port.
 _thub_is_listening() {
-  ss -ltn "sport = :$1" 2>/dev/null | grep -q LISTEN
+  local tool
+  tool="$(_thub_listen_tool)" || return 1
+  case "$tool" in
+    lsof) lsof -iTCP:"$1" -sTCP:LISTEN -P -n >/dev/null 2>&1 ;;
+    ss) ss -ltn "sport = :$1" 2>/dev/null | grep -q LISTEN ;;
+    nc) nc -z 127.0.0.1 "$1" >/dev/null 2>&1 ;;
+    *) return 1 ;;
+  esac
 }
 
 # Waits (up to ~10 s) for the port to start listening.
@@ -71,7 +100,9 @@ _thub_start() {
 
   node "$THUB_ROOT/tools-hub/index.mjs" > "$THUB_LOG_FILE" 2>&1 &
   pid=$!
-  disown "$pid" 2>/dev/null || true
+  # Bare disown drops the last background job in bash and zsh alike; a PID
+  # argument is not a valid jobspec in either.
+  disown
   printf '%s\n' "$pid" > "$THUB_PID_FILE"
 
   echo "thub: started (pid $pid), logs -> .tmp/tools-hub.log"

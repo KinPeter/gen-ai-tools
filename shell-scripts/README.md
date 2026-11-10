@@ -1,6 +1,6 @@
 # Shell scripts
 
-A collection of convenience scripts to register on your active shell. Sourcing `session.sh` defines the commands in the current shell session only — nothing is installed globally.
+A collection of convenience scripts to register on your active shell. Sourcing `session.sh` defines the commands in the current shell session only — nothing is installed globally. Works in zsh (the macOS default) and bash.
 
 ```sh
 source ./session.sh
