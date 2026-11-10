@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source-only library — tools-hub server lifecycle: thub start | status | stop.
+# Source-only library — tools-hub server lifecycle: thub start | status | stop | restart.
 # Loaded by session.sh; shell-agnostic (bash 3.2+ and zsh).
 
 # Repo root, resolved from this file's location (never the current directory).
@@ -10,14 +10,9 @@ THUB_PORT_DEFAULT=4218
 THUB_PID_FILE="$THUB_ROOT/.tmp/tools-hub.pid"
 THUB_LOG_FILE="$THUB_ROOT/.tmp/tools-hub.log"
 
-# Listening port as configured in .env, or the default when unset.
-_thub_port() {
-  local value=""
-  if [[ -f "$THUB_ROOT/.env" ]]; then
-    value="$(grep -m1 '^TOOLS_HUB_PORT=' "$THUB_ROOT/.env" | cut -d= -f2)"
-  fi
-  printf '%s\n' "${value:-$THUB_PORT_DEFAULT}"
-}
+# Port probes (_thub_port, _thub_listen_tool, _thub_port_pid, _thub_is_listening,
+# _thub_wait_for_listen, _thub_wait_for_free) live in tools-hub-port.sh.
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/tools-hub-port.sh"
 
 # PID from the pid file, if that process is still alive. Prints nothing, returns 1 otherwise.
 _thub_tracked_pid() {
@@ -31,60 +26,6 @@ _thub_tracked_pid() {
   return 1
 }
 
-# First tool available for inspecting a listening port: lsof (macOS + most Linux),
-# ss (Linux), nc (last resort). Returns 1 when none exists, so callers report
-# "not found" instead of a 127 command-not-found.
-_thub_listen_tool() {
-  if command -v lsof >/dev/null 2>&1; then printf 'lsof'
-  elif command -v ss >/dev/null 2>&1; then printf 'ss'
-  elif command -v nc >/dev/null 2>&1; then printf 'nc'
-  else return 1
-  fi
-}
-
-# PID of whatever process is holding the port, started by thub or not.
-# `nc` can only say whether a port is open, never who owns it, so it is not
-# usable here.
-_thub_port_pid() {
-  local tool pid=""
-  tool="$(_thub_listen_tool)" || return 1
-  case "$tool" in
-    lsof) pid="$(lsof -iTCP:"$1" -sTCP:LISTEN -P -n 2>/dev/null | awk 'NR>1 {print $2; exit}')" ;;
-    ss)
-      pid="$(ss -lptn "sport = :$1" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1)"
-      pid="${pid#pid=}"
-      ;;
-    *) return 1 ;;
-  esac
-  if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-    printf '%s\n' "$pid"
-    return 0
-  fi
-  return 1
-}
-
-# True when something is listening on the given port.
-_thub_is_listening() {
-  local tool
-  tool="$(_thub_listen_tool)" || return 1
-  case "$tool" in
-    lsof) lsof -iTCP:"$1" -sTCP:LISTEN -P -n >/dev/null 2>&1 ;;
-    ss) ss -ltn "sport = :$1" 2>/dev/null | grep -q LISTEN ;;
-    nc) nc -z 127.0.0.1 "$1" >/dev/null 2>&1 ;;
-    *) return 1 ;;
-  esac
-}
-
-# Waits (up to ~10 s) for the port to start listening.
-_thub_wait_for_listen() {
-  local _i
-  for (( _i = 0; _i < 100; _i++ )); do
-    if _thub_is_listening "$1"; then return 0; fi
-    sleep 0.1
-  done
-  return 1
-}
-
 # Start detached in the background; logs and errors to .tmp/tools-hub.log, truncated each start.
 _thub_start() {
   local pid port
@@ -95,6 +36,11 @@ _thub_start() {
   fi
 
   port="$(_thub_port)"
+  if pid="$(_thub_port_pid "$port")"; then
+    echo "thub: port $port is already in use (pid $pid, not started by thub)" >&2
+    return 1
+  fi
+
   mkdir -p "$THUB_ROOT/.tmp"
   : > "$THUB_LOG_FILE"
 
@@ -145,41 +91,50 @@ _thub_status() {
   return 1
 }
 
+# Wait up to <attempts> * 0.25s for a process to exit. 0 = gone, 1 = still alive.
+_thub_wait_for_exit() {
+  local pid="$1" attempts="$2" _i
+  for (( _i = 0; _i < attempts; _i++ )); do
+    if ! kill -0 "$pid" 2>/dev/null; then return 0; fi
+    sleep 0.25
+  done
+  return 1
+}
+
 # SIGINT (same as Ctrl+C), escalate to SIGTERM, then SIGKILL as a last resort.
+# A process on the port that thub did not start is left alone.
 _thub_stop() {
-  local pid waited
+  local pid port
 
+  port="$(_thub_port)"
   pid="$(_thub_tracked_pid)"
-  if [[ -z "$pid" ]]; then
-    pid="$(_thub_port_pid "$(_thub_port)")"
-  fi
 
   if [[ -z "$pid" ]]; then
-    echo "thub: not running"
     rm -f "$THUB_PID_FILE"
-    return 0
+    pid="$(_thub_port_pid "$port")"
+    if [[ -z "$pid" ]]; then
+      echo "thub: not running"
+      return 0
+    fi
+    echo "thub: port $port is held by pid $pid, which thub did not start; leaving it alone" >&2
+    echo "  stop it with: kill $pid" >&2
+    return 1
   fi
 
   kill -INT "$pid" 2>/dev/null
-  for (( waited = 0; waited < 20; waited++ )); do
-    if ! kill -0 "$pid" 2>/dev/null; then
-      rm -f "$THUB_PID_FILE"
-      echo "thub: stopped (pid $pid)"
-      return 0
-    fi
-    sleep 0.25
-  done
+  if _thub_wait_for_exit "$pid" 20; then
+    rm -f "$THUB_PID_FILE"
+    echo "thub: stopped (pid $pid)"
+    return 0
+  fi
 
   echo "thub: SIGINT did not stop it (pid $pid), sending SIGTERM" >&2
   kill -TERM "$pid" 2>/dev/null
-  for (( waited = 0; waited < 12; waited++ )); do
-    if ! kill -0 "$pid" 2>/dev/null; then
-      rm -f "$THUB_PID_FILE"
-      echo "thub: stopped (pid $pid)"
-      return 0
-    fi
-    sleep 0.25
-  done
+  if _thub_wait_for_exit "$pid" 12; then
+    rm -f "$THUB_PID_FILE"
+    echo "thub: stopped (pid $pid)"
+    return 0
+  fi
 
   echo "thub: pid $pid ignored SIGINT and SIGTERM; killed it. Check .tmp/tools-hub.log" >&2
   kill -9 "$pid" 2>/dev/null
@@ -187,13 +142,35 @@ _thub_stop() {
   return 1
 }
 
+# Stop, then start again — the start rebuilds the browser UI (unless
+# TOOLS_HUB_SKIP_UI_BUILD is set). Restarting is skipped while the port is busy.
+_thub_restart() {
+  local port stop_status=0
+
+  port="$(_thub_port)"
+
+  if ! _thub_stop; then
+    stop_status=1
+    echo "thub: restart: the old process did not shut down cleanly" >&2
+  fi
+
+  if ! _thub_wait_for_free "$port"; then
+    echo "thub: restart: port $port is still in use; not starting again" >&2
+    return 1
+  fi
+
+  _thub_start || return 1
+  return $stop_status
+}
+
 thub() {
   case "${1:-}" in
     start) _thub_start ;;
     status) _thub_status ;;
     stop) _thub_stop ;;
+    restart) _thub_restart ;;
     *)
-      echo "Usage: thub <start|status|stop>" >&2
+      echo "Usage: thub <start|status|stop|restart>" >&2
       return 2
     ;;
   esac

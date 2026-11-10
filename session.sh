@@ -31,7 +31,7 @@ source "${_GEN_AI_SCRIPT_DIR}/shell-scripts/tools-hub.sh"
 
 cat <<'EOF'
 Registered:
-  thub <start|status|stop>
+  thub <start|status|stop|restart>
   comfy -i <input1,..>
   comfy-batch <input-name>
   start-pod [image-key]
