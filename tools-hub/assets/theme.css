@@ -1,0 +1,282 @@
+/*
+ * Shared theme for the UIs served by tools-hub.
+ *
+ * Link it from any app:
+ *   <link rel="stylesheet" href="/assets/theme.css" />
+ *
+ * Theme mechanism: a small head script sets data-theme on the root element from
+ * prefers-color-scheme, so [data-theme="dark"] covers both the system default
+ * and a manual switch. The media query below is the JavaScript-free fallback.
+ * JSON token highlighting lives in /assets/syntax.css.
+ *
+ * Size: this is a pure declaration stylesheet (no logic), kept as one file so
+ * consumers link a single stylesheet — that is the stated justification for
+ * exceeding the 200-line guideline. The dark palette is written twice because
+ * plain CSS cannot share a declaration list between a [data-theme="dark"] rule
+ * and the media-query fallback without changing behaviour.
+ *
+ * Component contract — the markup these styles expect:
+ *   .panel        flex row that groups a control and its action
+ *   .field        text input inside a .panel
+ *   .button       primary action button
+ *   .link-button  inline text link styled as a button
+ *   .status       status line; .status.error for the error colour
+ *   .result       preformatted result panel, hidden when empty
+ *   .theme-toggle fixed top-right button holding .icon-sun and .icon-moon
+ *   h1 / .subtitle page title and its one-line description
+ *   body.dragging full-page drop-overlay; its text comes from --drag-label
+ *   data-theme    "light" | "dark" on the root element
+ *
+ * Page layout is deliberately not defined here: body flex direction, alignment
+ * and panel widths stay app-local so this theme does not impose a page shape.
+ */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --text: #1c2333;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-text: #ffffff;
+  --result-bg: #111827;
+  --result-text: #e5e7eb;
+  --border: #d1d5db;
+  --field-border: var(--border);
+  --error: #b91c1c;
+  --shadow: rgb(0 0 0 / 0.08);
+  --drag-overlay: rgb(37 99 235 / 0.08);
+  --radius: 10px;
+}
+
+/* Dark palette. Mirror every token change here in the no-JS fallback block
+   below — the two declaration lists must stay identical. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #12161d;
+  --panel: #1c222c;
+  --text: #e6e9f0;
+  --muted: #9aa4b2;
+  --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --accent-text: #0b1220;
+  --result-bg: #0d1117;
+  --result-text: #d6dbe4;
+  --border: #3a4452;
+  --field-border: #64707d;
+  --error: #f87171;
+  /* black shadows vanish on a dark background, so dark card depth
+     comes from a faint accent glow plus the border */
+  --shadow: rgb(96 165 250 / 0.12);
+  --drag-overlay: rgb(96 165 250 / 0.12);
+}
+
+/* Without the head script there is no data-theme, so the system preference
+   still selects the dark palette and the dark toggle icon. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #12161d;
+    --panel: #1c222c;
+    --text: #e6e9f0;
+    --muted: #9aa4b2;
+    --accent: #60a5fa;
+    --accent-hover: #3b82f6;
+    --accent-text: #0b1220;
+    --result-bg: #0d1117;
+    --result-text: #d6dbe4;
+    --border: #3a4452;
+    --field-border: #64707d;
+    --error: #f87171;
+    --shadow: rgb(96 165 250 / 0.12);
+    --drag-overlay: rgb(96 165 250 / 0.12);
+  }
+  :root:not([data-theme]) .theme-toggle .icon-sun {
+    display: block;
+  }
+  :root:not([data-theme]) .theme-toggle .icon-moon {
+    display: none;
+  }
+}
+
+/* Explicit light keeps native controls (scrollbars, form widgets)
+   light even when the system itself prefers dark. */
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* Reusable full-page drop overlay. Apps using body.dragging supply the text
+   with --drag-label; without it the overlay is just the tinted border. */
+body.dragging::after {
+  content: var(--drag-label, "");
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--drag-overlay);
+  border: 3px dashed var(--accent);
+  pointer-events: none;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.25rem;
+  text-align: center;
+}
+
+.subtitle {
+  margin: 0 0 1.25rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.panel {
+  display: flex;
+  gap: 0.5rem;
+  margin-inline: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  box-shadow: 0 1px 3px var(--shadow);
+}
+
+.field {
+  flex: 1;
+  min-width: 0;
+  font-size: 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+}
+
+.button {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.6rem 1.25rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.status {
+  min-height: 1.5em;
+  margin: 0.75rem 0 0.5rem;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.status.error {
+  color: var(--error);
+}
+
+.result {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  background: var(--result-bg);
+  color: var(--result-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.result:empty {
+  display: none;
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  /* above the drag overlay, which is generated after the button */
+  z-index: 1;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Each icon is explicitly shown or hidden so neither state depends on the UA
+   default for an inline <svg>: light shows the moon, dark shows the sun. */
+.theme-toggle .icon-sun {
+  display: none;
+}
+
+.theme-toggle .icon-moon {
+  display: block;
+}
+
+[data-theme="dark"] .theme-toggle .icon-sun {
+  display: block;
+}
+
+[data-theme="dark"] .theme-toggle .icon-moon {
+  display: none;
+}

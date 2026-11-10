@@ -31,7 +31,7 @@ Flat — every field at the top level: `filename`, `base-workflow`, `output-fold
 
 - `comfyui/jobs/log.mjs` — uploads the entries for each saved image after a generation.
 - `tools-hub/api/logging/find-log.mjs` — `GET /api/logging/find-log?filename=<image>`, backed by `findLogEntry` + `normalizeFilename`.
-- `logging/logfinder-ui/index.html` — single-file UI (filename input, drag-and-drop) served by `tools-hub/static/logfinder` at `/logfinder`; calls the API above.
+- `logging/logfinder-ui/index.html` — single-file UI (markup, inline page layout, drag-and-drop) served by `tools-hub/static/logfinder` at `/logfinder`; calls the API above. Its palette, base rules, component styles and JSON token highlighting come from `tools-hub/assets/theme.css` and `tools-hub/assets/syntax.css`, linked via `/assets`.
 - `agent-tools/lookup-log.mjs`, `agent-tools/log-search.mjs` — CLI lookup and search used by the image helper agents.
 
 `logging/temp-scripts/` holds one-off log-processing helpers; they are excluded from the coverage gate.

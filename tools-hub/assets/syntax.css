@@ -1,0 +1,43 @@
+/*
+ * JSON token highlighting shared by the tools-hub UIs.
+ *
+ * Link it on its own or alongside the theme:
+ *   <link rel="stylesheet" href="/assets/syntax.css" />
+ *
+ * The token colours are fixed rather than theme-dependent: the result panels
+ * that use them are dark in both the light and dark themes. They are tuned for a
+ * dark surface — on a lighter panel, re-declare the --tok-* tokens in a
+ * stylesheet loaded after this one, or in a rule scoped to that panel:
+ *   .light-panel {
+ *     --tok-key: #1d4ed8;
+ *     --tok-str: #166534;
+ *   }
+ */
+
+:root {
+  --tok-key: #93c5fd;
+  --tok-str: #86efac;
+  --tok-num: #fbbf24;
+  --tok-bool: #f472b6;
+  --tok-null: #9ca3af;
+}
+
+.tok-key {
+  color: var(--tok-key);
+}
+
+.tok-str {
+  color: var(--tok-str);
+}
+
+.tok-num {
+  color: var(--tok-num);
+}
+
+.tok-bool {
+  color: var(--tok-bool);
+}
+
+.tok-null {
+  color: var(--tok-null);
+}

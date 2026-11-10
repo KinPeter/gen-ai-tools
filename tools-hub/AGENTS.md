@@ -40,6 +40,17 @@ array. Register new routes in the matching list — order sets precedence.
 | `logfinder/`   | `logging/logfinder-ui/index.html`        | Serves the same HTML for every `/logfinder` sub-path                                                                                          |
 | `distbrowser/` | `dist-browser/dist/` (Vite build output) | SPA fallback to `index.html` only for genuine 404s; traversal → 403, read failure → 500, non-GET/HEAD → 405, no build → 404 with a build hint |
 
+Shared UI styles live in `tools-hub/assets/`: `theme.css` (light/dark tokens,
+base rules, generic component styles) and `syntax.css` (JSON token
+highlighting). Any UI links them from `/assets/`. `theme.css` is a component
+contract as well as a palette: it styles `.panel`, `.field`, `.button`,
+`.link-button`, `.status` (plus `.status.error`), `.result`, `.theme-toggle`
+(with `.icon-sun` / `.icon-moon`), `h1`, `.subtitle`, `body.dragging` (overlay
+text from `--drag-label`) and the `data-theme` attribute on the root element.
+Page layout — body flex direction, alignment, panel widths — is left to each
+app so the shared theme does not impose a page shape. `syntax.css` token colours
+are tuned for a dark panel; consumers on a light surface re-declare `--tok-*`.
+
 The dist-browser dist directory comes from `distBrowserUiPaths()` in
 `utils/path.mjs`; `createStaticRoutes({ distBrowserUiDistDir })` and
 `createServerInstance(options)` override it (used by the tests with a fixture).
