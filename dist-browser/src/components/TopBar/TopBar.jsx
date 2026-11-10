@@ -61,7 +61,17 @@ export function TopBar({ onRefresh, currentPath = "" }) {
 
   return (
     <div className="topbar">
-      <div className="topbar-title">{buildTitle(currentPath)}</div>
+      <div className="topbar-leading">
+        <button
+          className="topbar-button"
+          onClick={onRefresh}
+          aria-label="Refresh"
+          title="Refresh"
+        >
+          <RefreshIcon />
+        </button>
+        <div className="topbar-title">{buildTitle(currentPath)}</div>
+      </div>
       <div className="topbar-actions">
         <button
           className="topbar-button"
@@ -73,14 +83,6 @@ export function TopBar({ onRefresh, currentPath = "" }) {
           }
         >
           {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-        </button>
-        <button
-          className="topbar-button"
-          onClick={onRefresh}
-          aria-label="Refresh"
-          title="Refresh"
-        >
-          <RefreshIcon />
         </button>
       </div>
     </div>

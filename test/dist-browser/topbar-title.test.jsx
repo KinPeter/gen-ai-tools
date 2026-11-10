@@ -76,11 +76,27 @@ describe("TopBar title", () => {
     expect(titleElement.textContent).toBe("Dist Browser · subfolder/");
   });
 
-  it("still renders theme and refresh buttons", () => {
+  it("renders refresh in the leading group and the theme toggle in the actions group", () => {
     const { container } = renderTopBar({ currentPath: "archive" });
     const buttons = container.querySelectorAll(".topbar-button");
     expect(buttons).toHaveLength(2);
-    expect(buttons[0].getAttribute("aria-label")).toContain("Switch to");
-    expect(buttons[1].getAttribute("aria-label")).toBe("Refresh");
+
+    // The refresh button sits at the left corner of the header, immediately
+    // before the title, while the theme toggle stays at the right corner.
+    const leading = container.querySelector(".topbar-leading");
+    const actions = container.querySelector(".topbar-actions");
+    const refresh = container.querySelector(
+      '.topbar-button[aria-label="Refresh"]',
+    );
+    const theme = container.querySelector(
+      '.topbar-button[aria-label*="Switch to"]',
+    );
+
+    expect(leading).toBeTruthy();
+    expect(actions).toBeTruthy();
+    expect(leading.firstElementChild).toBe(refresh);
+    expect(leading.querySelector(".topbar-title")).toBeTruthy();
+    expect(actions.querySelector(".topbar-button")).toBe(theme);
+    expect(actions.contains(refresh)).toBe(false);
   });
 });

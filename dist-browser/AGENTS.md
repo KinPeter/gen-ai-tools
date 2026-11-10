@@ -24,7 +24,7 @@ the mount path and the asset URLs cannot drift apart.
 | `src/main.jsx`    | Mounts `App` in StrictMode.                                                                                                                                                                                            |
 | `src/App.jsx`     | `Layout` wrapped in `ThemeProvider`.                                                                                                                                                                                   |
 | `src/context/`    | `ThemeContext.jsx` — dark/light theme (system preference, explicit override).                                                                                                                                          |
-| `src/components/` | `Layout` (three columns + wiring), `Column`, `ResizeHandle`, `TopBar` (title, theme, refresh), `FileBrowser` + `FileBrowserEntry` + `FileBrowserIcons`, `ImageViewer`, `LogViewer`. Each component has its own `.css`. |
+| `src/components/` | `Layout` (three columns + wiring), `Column`, `ResizeHandle`, `TopBar` (refresh, title, theme), `FileBrowser` + `FileBrowserEntry` + `FileBrowserIcons`, `ImageViewer`, `LogViewer`. Each component has its own `.css`. |
 | `src/hooks/`      | Listing, selection, trash, keyboard, hover, scroll, image load/size, log lookup, column resizing, folder path.                                                                                                         |
 | `src/utils/`      | Pure helpers: entry sorting/paths, image-extension check, URL builders, folder normalization + persistence, title, JSON colorization, resize constraints.                                                              |
 

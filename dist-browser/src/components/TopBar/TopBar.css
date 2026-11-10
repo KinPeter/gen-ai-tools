@@ -15,16 +15,17 @@
   color: var(--text-primary);
 }
 
-.topbar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
+.topbar-leading,
 .topbar-actions {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.topbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .topbar-button {
