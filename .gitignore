@@ -64,6 +64,7 @@ Desktop.ini
 # Project-specific
 output/
 .tmp/
+**/.filen.trash.local/
 comfyui/inputs/*
 !comfyui/inputs/input.example.yaml
 !comfyui/inputs/input-guidelines.md
