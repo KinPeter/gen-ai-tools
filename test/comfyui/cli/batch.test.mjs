@@ -65,7 +65,8 @@ describe("batch orchestrator", () => {
     mocks.requestMemoryCleanup.mockResolvedValue(undefined);
 
     await expect(main()).resolves.toBe(true);
-    expect(mocks.writeLog).toHaveBeenCalled();
+    // Local json logging is disabled
+    expect(mocks.writeLog).not.toHaveBeenCalled();
     expect(mocks.addToLog).toHaveBeenCalled();
     expect(mocks.convertOutputs).toHaveBeenCalled();
     expect(mocks.requestMemoryCleanup).toHaveBeenCalledWith(

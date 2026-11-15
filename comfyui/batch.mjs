@@ -11,7 +11,7 @@ import {
 } from "./jobs/comfy.mjs";
 import { cleanupOriginals, saveOutputs } from "./jobs/save.mjs";
 import { convertOutputs } from "./jobs/convert.mjs";
-import { addToLog, writeLog } from "./jobs/log.mjs";
+import { addToLog } from "./jobs/log.mjs";
 import { timestamp } from "./utils/naming.mjs";
 import { getImageLogConnection } from "../logging/mongodb/client.mjs";
 
@@ -68,7 +68,8 @@ export async function main() {
   const runTs = timestamp();
   const logPath = path.join(LOCAL_OUTPUT_PATH, "logs", `${name}_${runTs}.json`);
   const logEntries = [];
-  await writeLog(logPath, logEntries);
+  // Local json logging is disabled
+  // await writeLog(logPath, logEntries);
 
   const jobs = await requireWorkflows(name);
   let allOk = true;
