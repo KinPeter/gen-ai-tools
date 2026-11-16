@@ -5,9 +5,9 @@ import { parentFolderPath } from "../utils/last-folder";
 /**
  * Keyboard navigation for the file browser list: ArrowUp/ArrowDown walk the
  * rows (wrapping), Enter opens the selected folder or the ".." row, Backspace
- * goes up one level, Delete trashes the selected entry and Home jumps to the
- * first row. Nothing is actuated while a listing is still loading, and any
- * keyboard move drops the mouse hover highlight.
+ * goes up one level, Delete or "d" trashes the selected entry and Home jumps
+ * to the first row. Nothing is actuated while a listing is still loading, and
+ * any keyboard move drops the mouse hover highlight.
  */
 export function useFileBrowserKeyboard({
   entries,
@@ -63,7 +63,9 @@ export function useFileBrowserKeyboard({
           onNavigate?.(parentFolderPath(currentPath));
           break;
         }
-        case "Delete": {
+        case "Delete":
+        case "d": {
+          if (event.metaKey || event.ctrlKey || event.altKey) break;
           event.preventDefault();
           const entry = entries[selectedIndex];
           if (entry && !isParentEntry(entry)) {

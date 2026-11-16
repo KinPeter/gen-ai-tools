@@ -25,7 +25,7 @@ Three columns, resizable (widths remembered between visits):
 - **File Browser** — tree of `dist/`, folders first, then images. Single click
   selects, double click or Enter opens a folder, `..` walks up one level.
   Arrow keys move through the list (wrapping), Backspace goes up, Home jumps to
-  the first row, Delete moves the selected file to `dist/.trash/`.
+  the first row, and Delete or `d` moves the selected file to `dist/.trash/`.
 - **Image Viewer** — the selected image, with a loading spinner, an error state
   with Retry, and the filename shown below the image or as an overlay when the
   image fills the column.

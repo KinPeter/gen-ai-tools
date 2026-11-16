@@ -66,8 +66,8 @@ used by both the API handlers and the UI.
 - A single click selects a row; only image entries populate the Image Viewer and
   Log Viewer (`..` ignores single click). Double click or Enter opens a folder or
   `..`, Backspace goes up, ArrowUp/ArrowDown walk the rows (wrapping), Home jumps
-  to the first row, Delete trashes the selected entry. Nothing acts while the
-  listing is loading.
+  to the first row, Delete or `d` trashes the selected entry. Nothing acts while
+  the listing is loading.
 - After a trash, the listing is refreshed and the row now at the deleted index
   becomes selected, so viewer and log follow the list. `/api/dist-browser/trash`
   returns 200 even for failed paths, so the body's `ok` flag is checked.

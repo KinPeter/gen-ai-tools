@@ -307,6 +307,82 @@ describe("FileBrowser", () => {
 
       expect(onDelete).not.toHaveBeenCalled();
     });
+
+    it("d key calls onDelete for the selected entry", () => {
+      const onDelete = vi.fn();
+      const { container } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 2, // "img1.png"
+        onDelete,
+      });
+      const list = container.querySelector(".file-browser-list");
+
+      fireEvent.keyDown(list, { key: "d" });
+
+      expect(onDelete).toHaveBeenCalledWith(fixtures.rootEntries[2]);
+    });
+
+    it('d key does not call onDelete for ".." entry', () => {
+      const onDelete = vi.fn();
+      const { container } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 0, // ".."
+        onDelete,
+      });
+      const list = container.querySelector(".file-browser-list");
+
+      fireEvent.keyDown(list, { key: "d" });
+
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+
+    it("d key is ignored while the listing is loading", () => {
+      const onDelete = vi.fn();
+      const { container } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: 2,
+        loading: true,
+        onDelete,
+      });
+      const list = container.querySelector(".file-browser-list");
+
+      fireEvent.keyDown(list, { key: "d" });
+
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+
+    // "d" is a plain letter, so the browser's own chord must keep working:
+    // Cmd/Ctrl/Alt + d is not a trash shortcut.
+    it.each(["metaKey", "ctrlKey", "altKey"])(
+      "d key with %s does not call onDelete",
+      (modifier) => {
+        const onDelete = vi.fn();
+        const { container } = renderFileBrowser({
+          entries: fixtures.rootEntries,
+          selectedIndex: 2,
+          onDelete,
+        });
+        const list = container.querySelector(".file-browser-list");
+
+        fireEvent.keyDown(list, { key: "d", [modifier]: true });
+
+        expect(onDelete).not.toHaveBeenCalled();
+      },
+    );
+
+    it("d key does nothing when no row is selected", () => {
+      const onDelete = vi.fn();
+      const { container } = renderFileBrowser({
+        entries: fixtures.rootEntries,
+        selectedIndex: -1,
+        onDelete,
+      });
+      const list = container.querySelector(".file-browser-list");
+
+      fireEvent.keyDown(list, { key: "d" });
+
+      expect(onDelete).not.toHaveBeenCalled();
+    });
   });
 
   describe("hover highlight", () => {

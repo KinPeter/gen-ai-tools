@@ -206,10 +206,8 @@ async function selectImage(container, name) {
   fireEvent.click(itemByName(container, name));
 }
 
-function deleteSelected(container) {
-  fireEvent.keyDown(container.querySelector(".file-browser-list"), {
-    key: "Delete",
-  });
+function deleteSelected(container, key = "Delete") {
+  fireEvent.keyDown(container.querySelector(".file-browser-list"), { key });
 }
 
 // The TopBar refresh button is the layout's only refresh control.
@@ -754,6 +752,28 @@ describe("Layout delete flow", () => {
     // not literally empty; still, no image remains, so the viewer is cleared.
     expect(itemByName(container, ".trash")).toBeTruthy();
     expect(selectedItemNames(container)).toEqual([".trash"]);
+  });
+
+  it("the d key trashes the selected image and refreshes the listing", async () => {
+    const { container, state, fetchMock } = renderLayout({
+      "": [folder("archive"), image("img1.png"), image("img2.jpg")],
+    });
+
+    await selectImage(container, "img2.jpg");
+
+    deleteSelected(container, "d");
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([url]) => String(url) === "/api/dist-browser/trash",
+        ),
+      ).toBe(true),
+    );
+    expect(state.trashed).toEqual(["img2.jpg"]);
+    expect(itemByName(container, "img2.jpg")).toBeNull();
+    expect(selectedItemNames(container)).toEqual(["img1.png"]);
+    expect(viewerSrc(container)).toBe("/api/dist-browser/images/img1.png");
   });
 
   it("ignores a second Delete keypress while a delete is in flight", async () => {
