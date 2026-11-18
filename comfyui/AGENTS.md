@@ -39,6 +39,7 @@ Pipeline in `workflow-builder/workflow.mjs`: parse YAML → `validateJobData` �
 - `tries`: integer ≥ 1, default 1 — each try is a separate queued workflow.
 - `size` (`{width, height}`), `steps`, `cfg`, `sampler`, `scheduler`, `filename-prefix`, `output-folder` are optional; omitted values keep the base workflow's.
 - Nodes are located by `class_type` (`KSampler`, `EmptyLatentImage`, `SaveImage`, `CheckpointLoaderSimple`); positive/negative CLIP nodes are resolved from the sampler's `positive`/`negative` links, falling back to `PositiveCLIP_Base` / `NegativeCLIP_Base`. New base workflows must keep those node types.
+- Checkpoint-free base workflows are supported (`example-krea2-base-workflow`: `UNETLoader` + `CLIPLoader` + `VAELoader`). `loras` and `clip-skip` still require a `CheckpointLoaderSimple`; everything else works on a UNETLoader workflow.
 - Images are always fetched through `GET /view` — the code never assumes access to the ComfyUI server's disk.
 
 ### Job execution
@@ -57,7 +58,7 @@ Pipeline in `workflow-builder/workflow.mjs`: parse YAML → `validateJobData` �
 - Raw image: `output/<output-folder>/<prefix>_YYYYMMDDHHmmss.<ext>` (`_<n>` for multi-image jobs); the extension comes from the ComfyUI filename
 - JPG: `dist/<output-folder>/<prefix>_YYYYMMDDHHmmss.jpg` (mirrors `output/` subfolders)
 - PNG originals are deleted after conversion unless `COMFY_KEEP_ORIGINALS=true`
-- Log entry per image, keyed in MongoDB by the extension-stripped filename: input settings plus `model`, `prompt`, `negative-prompt`, `steps`, `cfg`, `sampler`, `scheduler`, `seed`, `filename`, `generatedIn` (`m:ss`, from the `execution_start`/`execution_success` status messages), `comfyJobId`
+- Log entry per image, keyed in MongoDB by the extension-stripped filename: input settings plus `model` (the `ckpt_name` of the checkpoint, or the `unet_name` of a `UNETLoader` base workflow), `prompt`, `negative-prompt`, `steps`, `cfg`, `sampler`, `scheduler`, `seed`, `filename`, `generatedIn` (`m:ss`, from the `execution_start`/`execution_success` status messages), `comfyJobId`
 - `output/logs/<input>_<run-ts>.json` is still created empty at the start of a run (subfolder inputs keep their relative subfolder)
 
 ### Path safety

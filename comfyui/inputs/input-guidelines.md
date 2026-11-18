@@ -87,7 +87,7 @@ Each prompt entry inherits block-level settings and can override:
 
 ## LoRA Chains
 
-LoRAs are wired into the workflow as a chain after `CheckpointLoaderSimple`.
+LoRAs are wired into the workflow as a chain after `CheckpointLoaderSimple`. LoRAs are only supported on base workflows that have a checkpoint loader; UNETLoader-based workflows such as `example-krea2-base-workflow` do not support them yet.
 
 **Definition:**
 
@@ -178,7 +178,7 @@ Seed behavior depends on the `seed` value and `tries` count:
 
 - Same base file is **cached** and read once per session.
 - Each block gets a **deep clone** of the base workflow (`structuredClone`).
-- Required node types: `KSampler`, `CheckpointLoaderSimple`.
+- Required node types: `KSampler`, plus a model loader — `CheckpointLoaderSimple` (SDXL-style) or `UNETLoader` (Krea2-style, with its own `CLIPLoader` and `VAELoader`).
 - `EmptyLatentImage` and `SaveImage` are handled gracefully.
 
 ### Available Base Workflows

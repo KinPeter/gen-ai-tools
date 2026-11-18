@@ -43,9 +43,21 @@ export function findNodeByClass(workflow, classType) {
   return undefined;
 }
 
+/**
+ * Name of the diffusion model the workflow loads: a checkpoint when the base
+ * workflow has a CheckpointLoaderSimple, otherwise a standalone UNET loader
+ * (Krea2-style workflows load the model with UNETLoader).
+ */
+export function getModelName(workflow) {
+  const checkpointLoader = findNode(workflow, "CheckpointLoaderSimple");
+  if (checkpointLoader) return checkpointLoader.inputs?.["ckpt_name"];
+
+  const unetLoader = findNode(workflow, "UNETLoader");
+  return unetLoader?.inputs?.["unet_name"];
+}
+
 export function getFinalLogDataFromWorkflow(workflow) {
   const sampler = findNode(workflow, "KSampler") ?? workflow.Sampler;
-  const checkpointLoader = findNode(workflow, "CheckpointLoaderSimple");
   return {
     positivePrompt: findPositiveClip(workflow, sampler)?.inputs?.text,
     negativePrompt: findNegativeClip(workflow, sampler)?.inputs?.text,
@@ -54,6 +66,6 @@ export function getFinalLogDataFromWorkflow(workflow) {
     cfg: sampler?.inputs?.cfg,
     sampler: sampler?.inputs?.["sampler_name"],
     scheduler: sampler?.inputs?.scheduler,
-    model: checkpointLoader?.inputs?.["ckpt_name"],
+    model: getModelName(workflow),
   };
 }
