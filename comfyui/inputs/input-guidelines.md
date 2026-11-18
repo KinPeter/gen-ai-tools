@@ -36,11 +36,11 @@ Values for all the optional overrides will use the values set in the base workfl
 | `base-workflow`   | string               | Loads `comfyui/workflows/<name>.json` (`.json` optional). Required.           |
 | `output-folder`   | string               | Output subdirectory under `output/`.                                          |
 | `filename-prefix` | string               | Prefix for saved image filenames.                                             |
-| `steps`           | finite number        | KSampler steps override.                                                      |
-| `cfg`             | finite number        | KSampler CFG scale.                                                           |
+| `steps`           | finite number        | Diffusion steps override.                                                     |
+| `cfg`             | finite number        | CFG scale.                                                                    |
 | `sampler`         | string               | e.g., `euler`, `lcm`, `heun`, `dpmpp_2m`.                                     |
 | `scheduler`       | string               | e.g., `normal`, `kl_optimal`, `karras`, `simple`.                             |
-| `size`            | object               | `{width?: number, height?: number}` — EmptyLatentImage dimensions.            |
+| `size`            | object               | `{width?: number, height?: number}` — output image dimensions.                |
 | `seed`            | number or `"random"` | Fixed seed value or `"random"` for always-random. Defaults to random.         |
 | `tries`           | int ≥ 1              | Number of workflow clones (retries/variants). Default: 1.                     |
 | `loras`           | array                | List of `{name, strength}` — at least one entry required. LoRA chain entries. |
@@ -87,12 +87,7 @@ Each prompt entry inherits block-level settings and can override:
 
 ## LoRA Chains
 
-`loras` inserts `Lora_1..Lora_N` nodes immediately after the base workflow's model loader; the wiring style comes from that loader, not from the input:
-
-- **Checkpoint base** (`CheckpointLoaderSimple`): `LoraLoader` nodes chained from the checkpoint, `strength` applied to `strength_model` **and** `strength_clip`.
-- **UNETLoader base** (`UNETLoader` with its own `CLIPLoader` / `VAELoader`, e.g. `example-unet-base-workflow`): `LoraLoaderModelOnly` nodes chained from the loader, `strength` applied to `strength_model` only — these LoRAs never touch the text encoder.
-
-Every node that reads the loader's model output moves to the last LoRA, including a `ModelSamplingAuraFlow` shift node when the base carries one (`example-unet-with-shift-workflow`); the sampler keeps reading that node because in these bases the shift node is its only model source, so the shift setting survives. A base that wired **both** the sampler and a shift node to the loader would move both consumers to `Lora_N` and orphan the shift node.
+`loras` is a list of `{name, strength}` entries applied in order. The format is identical for every base workflow: the builder creates the LoRA chain in the background, so which loader the base uses internally never changes what you write.
 
 **Definition:**
 
@@ -105,11 +100,8 @@ loras:
 ```
 
 - `name` — `.safetensors` file name (not full path).
-- `strength` — applied to `strength_model`, and to `strength_clip` as well on checkpoint bases.
+- `strength` — LoRA strength; the builder applies it where it belongs for the chosen base.
 - LoRAs chain sequentially: first LoRA loads, then the next, etc.
-- Last LoRA becomes chain tip; the loader's consumers are rewired to it (model on both loaders, CLIP only on a checkpoint base).
-- `VAEDecode` is **not** rewired — it keeps its VAE port.
-- A base that already carries its own `LoraLoaderModelOnly` node (`example-unet-with-lora-workflow.json`, the retired `ultrakr2-lora.json`) is not special-cased: its sampler is already wired to that baked node, so only the baked node's own input moves — `UNETLoader_Base → Lora_1..Lora_N → baked node → Sampler`. Both LoRAs apply and nothing is lost, but the baked node's `strength_model` is fixed in the JSON and no input key (not even a per-prompt `loras` override, which replaces only the generated list) can tune or drop it, so the effective chain is baked **plus** requested — prefer a clean base plus `loras:`. Mixing does fail loudly when the base's baked chain already owns the `Lora_1..Lora_N` labels (`example-comfy-workflow.json`): `loras` is then rejected as a label collision.
 
 **Block vs. per-prompt:**
 
@@ -183,13 +175,12 @@ Seed behavior depends on the `seed` value and `tries` count:
 | `base-workflow: example-base-workflow.json` | Same file (`.json` is optional).               |
 
 - Same base file is **cached** and read once per session.
-- Each block gets a **deep clone** of the base workflow (`structuredClone`).
-- Required node types: `KSampler`, plus a model loader — `CheckpointLoaderSimple` (SDXL-style) or `UNETLoader` (Krea2-style, with its own `CLIPLoader` and `VAELoader`). `clip-skip` additionally requires `CheckpointLoaderSimple`, because `CLIPSetLastLayer` reads the checkpoint's CLIP output; a `UNETLoader` base is rejected with an error.
-- `EmptyLatentImage` and `SaveImage` are handled gracefully.
+- Every block and every clone gets its own independent copy of the base workflow, so jobs never interfere.
+- Bases come in two flavors — SDXL-style checkpoint bases and Krea2-style bases — and the input format is the same for both. The one exception: `clip-skip` is a checkpoint-base feature; Krea2-style models don't need it, and using it there returns an error.
 
 ### Available Base Workflows
 
-For available base workflows list files in the comfyui/workflows/ folder without the example- prefix.
+The single source of truth is the `comfyui/workflows/` folder: list its files and ignore anything starting with `example-` — the non-example files are the production bases. Their filenames (without `.json`) go after `base-workflow:`.
 
 ---
 
@@ -197,11 +188,10 @@ For available base workflows list files in the comfyui/workflows/ folder without
 
 ```
 input.yaml
-    → loadWorkflows()        — parse YAML blocks
-    → expandPrompts()         — join multi-line prompts, merge block → prompt
-    → expandBraceVariants()   — generate variants from {a, b} syntax
-    → for each prompt × tries:
-        structuredClone(base) → applyOverrides() → {workflow, input}
+    → parse + validate the YAML
+    → merge block settings into each prompt entry
+    → expand {a, b} brace variants
+    → for each variant × tries: independent clone + overrides → one queued job
 ```
 
 Each combination produces a distinct workflow JSON sent to the ComfyUI queue.
