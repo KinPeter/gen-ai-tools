@@ -1,57 +1,47 @@
-import { findNode, findNodeByClass } from "./utils.mjs";
+import { findNode, findNodeByClass, insertNodesAfter } from "./utils.mjs";
 
 /**
  * Determine the clip source label for a ClipSkip_Base node.
- * Without LoRAs → checkpoint label; with LoRAs → last LoRA label (e.g. "Lora_2").
+ * Without LoRAs → the model loader label; with LoRAs → the last LoRA label
+ * (e.g. "Lora_2").
  */
-export function findClipSourceLabel(workflow, loras, checkpointLabel) {
+export function findClipSourceLabel(workflow, loras, modelLoaderLabel) {
   if (loras && Array.isArray(loras) && loras.length > 0) {
     return `Lora_${loras.length}`;
   }
-  return checkpointLabel;
+  return modelLoaderLabel;
 }
 
 /**
- * Create a ClipSkip_Base node and insert it after the checkpoint in the workflow.
- * The clip input always references the checkpoint (or last LoRA when LoRAs are
- * already applied).  Insertion always happens after the *checkpoint* so that
- * key order stays stable regardless of whether LoRAs are present.
+ * Create a ClipSkip_Base node and insert it after the base workflow's model
+ * loader. The clip input references the loader's CLIP output (or the last
+ * LoRA when LoRAs are already applied); only the key-order anchor is the
+ * loader, so insertion stays stable regardless of whether LoRAs are present.
  *
  * @param {object} workflow - The workflow object.
  * @param {number} clipSkipValue - The clip-skip value to set.
- * @param {string} clipSourceLabel - The node label that provides the clip input (checkpoint or last LoRA).
- * @param {string} checkpointLabel - The workflow key label of the checkpoint node (for key-order insertion).
+ * @param {string} clipSourceLabel - The node label that provides the clip input (model loader or last LoRA).
+ * @param {string} anchorLabel - The workflow key the new node is inserted after (the model loader).
  * @returns {string} The label used ("ClipSkip_Base").
  */
 export function createClipSkipNode(
   workflow,
   clipSkipValue,
   clipSourceLabel,
-  checkpointLabel,
+  anchorLabel,
 ) {
   const label = "ClipSkip_Base";
 
-  const originalKeys = Object.keys(workflow);
-  const values = {};
-  for (const key of originalKeys) values[key] = workflow[key];
-  for (const key of originalKeys) delete workflow[key];
+  insertNodesAfter(workflow, anchorLabel, {
+    [label]: {
+      class_type: "CLIPSetLastLayer",
+      inputs: {
+        clip: [clipSourceLabel, 1],
+        stop_at_clip_layer: clipSkipValue,
+      },
+    },
+  });
 
-  // Always insert after the checkpoint, never after the (possibly-loRA) clip source.
-  const cpIndex = originalKeys.indexOf(checkpointLabel);
-
-  for (let i = 0; i < originalKeys.length; i++) {
-    const key = originalKeys[i];
-    workflow[key] = values[key];
-    if (i === cpIndex) {
-      workflow[label] = {
-        class_type: "CLIPSetLastLayer",
-        inputs: {
-          clip: [clipSourceLabel, 1],
-          stop_at_clip_layer: clipSkipValue,
-        },
-      };
-    }
-  }
   return label;
 }
 
@@ -102,27 +92,31 @@ export function rewireClipsTo(wf, clipSkipLabel, sampler) {
 /**
  * Apply clip-skip override (create node if missing, override value if exists).
  * Expects LoRAs to already be applied (clip source must be correct).
+ * Creating the node needs a loader with a CLIP output, so a model-only base
+ * (UNETLoader) fails instead of leaving the CLIP nodes on an uninserted node.
  */
 export function applyClipSkipOverride(
   workflow,
   clipSkipValue,
   loras,
-  checkpointLabel,
+  loader,
   sampler,
 ) {
   const clipSkipNode = findNode(workflow, "CLIPSetLastLayer");
   if (clipSkipNode == null) {
-    // ClipSkip_Base does NOT exist — CREATE it and rewire clips
-    const clipSourceLabel = findClipSourceLabel(
-      workflow,
-      loras,
-      checkpointLabel,
-    );
+    // ClipSkip_Base does NOT exist — CREATE it and rewire clips. Only a
+    // checkpoint loader has the CLIP output this node reads.
+    if (loader == null || loader.clipOutput == null) {
+      throw new Error(
+        '"clip-skip" requires a CheckpointLoaderSimple node in the base workflow',
+      );
+    }
+    const clipSourceLabel = findClipSourceLabel(workflow, loras, loader.label);
     const clipSkipLabel = createClipSkipNode(
       workflow,
       clipSkipValue,
       clipSourceLabel,
-      checkpointLabel,
+      loader.label,
     );
     rewireClipsTo(workflow, clipSkipLabel, sampler);
   } else {

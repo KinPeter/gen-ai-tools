@@ -1,0 +1,10 @@
+# e2e-40: Brace expansion (4 cartesian variants) on a UNETLoader shift base with a LoRA chain:
+# every variant gets its own independently wired chain and the block seed is dropped.
+- base-workflow: unet-with-shift
+  seed: 777
+  loras:
+    - name: brace-unet-lora.safetensors
+      strength: 0.5
+  prompts:
+    - prompt:
+        - a {red, blue} car on a {mountain, beach} road

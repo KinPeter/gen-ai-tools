@@ -2,7 +2,10 @@
  * End-to-end tests for workflow building: YAML input → workflow JSON output.
  *
  * These tests read input YAML files from `inputs/`, run them through
- * `loadWorkflows()` using the fixture base workflows from `base-workflows/`,
+ * `loadWorkflows()` using the fixture base workflows from `base-workflows/`
+ * (checkpoint bases `full-base`, `minimal-base`, `minimal-no-clipskip`;
+ * checkpoint-free UNETLoader bases `unet-base`, `unet-with-lora`,
+ * `unet-with-shift` — mirrors of the production `example-unet-*` workflows),
  * and compare the result against pre-generated golden JSON files in `golden/`.
  *
  * Each test verifies that the workflow structure (node graph, inputs, overrides)
@@ -18,7 +21,8 @@
 
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { beforeAll, beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
+import { deterministicRandom } from "../../support/deterministic-seeds.mjs";
 import { loadWorkflows } from "../../../comfyui/workflow-builder/workflow.mjs";
 
 const FIXTURES_BASE = path.join(import.meta.dirname, "base-workflows");
@@ -34,69 +38,45 @@ async function getInputFiles() {
   return allFiles.filter((f) => f.endsWith(".yaml")).sort();
 }
 
-let inputFiles = [];
-let goldenBasenames = new Set();
-
-beforeAll(async () => {
-  inputFiles = await getInputFiles();
-
-  // Also populate golden basenames for the "golden files exist" test
-  const goldenFiles = await readdir(GOLDEN_DIR);
-  goldenBasenames = new Set(
-    goldenFiles
-      .filter((f) => f.endsWith(".json"))
-      .map((f) => f.replace(/\.json$/, "")),
+/**
+ * Runs one input through the pipeline and reads its golden file. Used by the
+ * feature-by-feature tests added after scenario 32; the older tests inline the
+ * same two calls.
+ */
+async function loadWithGolden(baseName) {
+  const workflows = await loadWorkflows(baseName, INPUTS_DIR, FIXTURES_BASE);
+  const golden = JSON.parse(
+    await readFile(path.join(GOLDEN_DIR, `${baseName}.json`), "utf8"),
   );
-});
+  return { workflows, golden };
+}
 
-// Patch Math.random for deterministic seeds across all tests.
-//
-// IMPORTANT: beforeEach resets Math.random._callCount to 0 before each test,
-// so every test starts from index 0 of this array. The seeds below are
-// allocated per-test, not cumulatively across the suite. Each test that
-// needs deterministic seeds calls loadWorkflows(), which internally invokes
-// getRandomSeed() — that's where the Math.random calls happen.
-//
-// Per-test seed allocation:
-//   test-12 (3 tries): indices 0..2
-//   test-18 (2 brace variants): indices 0..1
-//   test-19 (4 brace cartesian): indices 0..3
-//   test-20 (3 brace variants): indices 0..2
-//   test-22 (seed=random, tries=1): index 0
-//   test-29 (entry0 tries=2 + entry1 tries=1): indices 0..2
-//
-// If workflow.mjs changes the order of getRandomSeed() calls, regenerate
-// the golden files (see AGENTS.md → "ComfyUI workflow building tests").
-const DETERMINISTIC_SEEDS = [
-  // test 12: tries=3
-  1000000001, 1000000002, 1000000003,
-  // test 18: brace 2 variants
-  2000000001, 2000000002,
-  // test 19: brace 4 variants
-  3000000001, 3000000002, 3000000003, 3000000004,
-  // test 20: brace 3 variants
-  4000000001, 4000000002, 4000000003,
-  // test 22: seed=random, tries=1
-  5000000001,
-  // test 29: entry0 tries=2 + entry1 tries=1
-  6000000001, 6000000002, 6000000003,
-  // test 31: clip-skip create
-  7000000001,
-];
+// The input list drives the generated tests below, so it has to be read at
+// collection time: a `beforeAll` hook runs only after the describe body has
+// already been evaluated, which left both generated test loops empty.
+const inputFiles = await getInputFiles();
+const goldenBasenames = new Set(
+  (await readdir(GOLDEN_DIR))
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.replace(/\.json$/, "")),
+);
 
+// Patch Math.random for deterministic seeds across all tests. The seed array
+// and its per-test allocation live in test/support/deterministic-seeds.mjs,
+// which generate-goldens.mjs imports too — the two harnesses must draw the
+// same values in the same order or regenerated goldens stop matching the
+// suite. `beforeEach` restarts the counter, so every test begins at index 0
+// exactly like the generator does for every input.
+//
+// If workflow.mjs changes the order of getRandomSeed() calls, regenerate the
+// golden files (see AGENTS.md → "ComfyUI workflow building tests").
+const seedState = { count: 0 };
 const _origRandom = Math.random;
-Math.random = () => {
-  const seqIdx = Math.random._callCount ?? 0;
-  Math.random._callCount = seqIdx + 1;
-  if (seqIdx < DETERMINISTIC_SEEDS.length) {
-    return DETERMINISTIC_SEEDS[seqIdx] / Number.MAX_SAFE_INTEGER;
-  }
-  return _origRandom();
-};
+Math.random = deterministicRandom(seedState, _origRandom);
 
 // Reset counter before each test
 beforeEach(() => {
-  Math.random._callCount = 0;
+  seedState.count = 0;
 });
 
 describe("e2e workflow building: YAML input → workflow JSON", () => {
@@ -763,5 +743,254 @@ describe("e2e workflow building: YAML input → workflow JSON", () => {
       "masterpiece, best quality",
     );
     expect(wf.PositiveCLIP_Base.inputs.text).toContain("clip skip created");
+  });
+
+  // --- UNETLoader (checkpoint-free) bases: LoRA chains and complex overrides ---
+
+  test("33 unet-single-prompt: prompt lands on the empty base CLIP, loader keeps its link", async () => {
+    const { workflows, golden } = await loadWithGolden("33-unet-single-prompt");
+
+    expect(workflows).toHaveLength(1);
+    const wf = workflows[0].workflow;
+    // Key order is compared explicitly because `toEqual` ignores it — the
+    // goldens pin where every generated node is spliced into the dict.
+    expect(Object.keys(wf)).toEqual(Object.keys(golden[0].workflow));
+    // A Krea2-style base carries no checkpoint: UNETLoader + CLIPLoader + VAELoader.
+    expect(wf.Sampler.inputs.model).toEqual(["UNETLoader_Base", 0]);
+    expect(wf.Sampler.inputs.seed).not.toBe(704601);
+    // The base CLIP text is empty, so the override is the prompt itself.
+    expect(wf.PositiveCLIP_Base.inputs.text).toBe("a red fox in autumn light");
+    expect(wf.NegativeCLIP_Base.inputs.text).toBe("");
+    // Omitted overrides keep the base workflow's own defaults.
+    expect(wf.Sampler.inputs.steps).toBe(8);
+    expect(wf.Sampler.inputs.cfg).toBe(1);
+    expect(wf.Sampler.inputs.sampler_name).toBe("er_sde");
+    expect(wf.Sampler.inputs.scheduler).toBe("simple");
+    expect(wf.EmptyLatentImage.inputs.width).toBe(1024);
+    expect(wf.EmptyLatentImage.inputs.height).toBe(1536);
+    expect(wf.SaveImage.inputs.filename_prefix).toBe("krea2");
+    expect(wf.Lora_1).toBeUndefined();
+  });
+
+  test("34 unet-single-lora: LoraLoaderModelOnly node, clip and VAE links untouched", async () => {
+    const { workflows, golden } = await loadWithGolden("34-unet-single-lora");
+
+    const wf = workflows[0].workflow;
+    // Key order is compared explicitly because `toEqual` ignores it: the
+    // generated LoRA must sit immediately after the loader.
+    expect(Object.keys(wf)).toEqual(Object.keys(golden[0].workflow));
+    expect(wf.Lora_1).toEqual({
+      class_type: "LoraLoaderModelOnly",
+      inputs: {
+        lora_name: "unet-style-lora.safetensors",
+        strength_model: 0.7,
+        model: ["UNETLoader_Base", 0],
+      },
+    });
+    // The inputs key order is load-bearing in the golden files: a model-only
+    // LoRA stores its settings before the model link, unlike LoraLoader.
+    expect(Object.keys(wf.Lora_1.inputs)).toEqual([
+      "lora_name",
+      "strength_model",
+      "model",
+    ]);
+    expect(wf.Lora_1.inputs).not.toHaveProperty("clip");
+    expect(wf.Lora_1.inputs).not.toHaveProperty("strength_clip");
+    expect(wf.Sampler.inputs.model).toEqual(["Lora_1", 0]);
+    // A model-only LoRA never touches the text encoder or the VAE loader.
+    expect(wf.PositiveCLIP_Base.inputs.clip).toEqual(["CLIPLoader_Base", 0]);
+    expect(wf.NegativeCLIP_Base.inputs.clip).toEqual(["CLIPLoader_Base", 0]);
+    expect(wf.VAEDecode_1.inputs.vae).toEqual(["VAELoader_Base", 0]);
+  });
+
+  test("35 unet-three-lora-chain: model-only nodes chained to the tip", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "35-unet-three-lora-chain",
+    );
+
+    const wf = workflows[0].workflow;
+    // Key order is compared explicitly because `toEqual` ignores it: the
+    // chain is spliced in right after the loader, in request order.
+    expect(Object.keys(wf)).toEqual(Object.keys(golden[0].workflow));
+    expect(wf.Lora_1.inputs.model).toEqual(["UNETLoader_Base", 0]);
+    expect(wf.Lora_2.inputs.model).toEqual(["Lora_1", 0]);
+    expect(wf.Lora_3.inputs.model).toEqual(["Lora_2", 0]);
+    expect(wf.Sampler.inputs.model).toEqual(["Lora_3", 0]);
+    // `strength` maps to strength_model only on a model-only base, and every
+    // node keeps the model-only key order.
+    const chain = [
+      ["unet-first-lora.safetensors", 1],
+      ["unet-second-lora.safetensors", 0.5],
+      ["unet-third-lora.safetensors", 0.25],
+    ];
+    for (const [index, [name, strength]] of chain.entries()) {
+      const label = `Lora_${index + 1}`;
+      expect(wf[label].class_type).toBe("LoraLoaderModelOnly");
+      expect(Object.keys(wf[label].inputs)).toEqual([
+        "lora_name",
+        "strength_model",
+        "model",
+      ]);
+      expect(wf[label].inputs.lora_name).toBe(name);
+      expect(wf[label].inputs.strength_model).toBe(strength);
+      expect(wf[label].inputs).not.toHaveProperty("strength_clip");
+    }
+    // A model-only chain leaves the text encoder and the VAE alone.
+    expect(wf.PositiveCLIP_Base.inputs.clip).toEqual(["CLIPLoader_Base", 0]);
+    expect(wf.VAEDecode_1.inputs.vae).toEqual(["VAELoader_Base", 0]);
+  });
+
+  test("36 unet-lora-on-baked-lora-base: requested chain lands before the baked node", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "36-unet-lora-on-baked-lora-base",
+    );
+
+    const wf = workflows[0].workflow;
+    // Key order is compared explicitly because `toEqual` ignores it: the
+    // requested chain lands after the loader, ahead of the base's baked LoRA.
+    expect(Object.keys(wf)).toEqual(Object.keys(golden[0].workflow));
+    expect(wf.Lora_1.inputs.model).toEqual(["UNETLoader_Base", 0]);
+    expect(wf.Lora_2.inputs.model).toEqual(["Lora_1", 0]);
+    expect(wf.Lora_2.inputs.strength_model).toBe(0.4);
+    // The base's baked LoRA is itself a consumer of the loader, so its own
+    // link moves onto the requested tip:
+    // UNETLoader_Base -> Lora_1 -> Lora_2 -> LoraLoader_1 -> Sampler.
+    expect(wf.LoraLoader_1.inputs.model).toEqual(["Lora_2", 0]);
+    // Its name and baked strength survive untouched — no input key tunes it.
+    expect(wf.LoraLoader_1.inputs.lora_name).toBe("<LoRA name>.safetensors");
+    expect(wf.LoraLoader_1.inputs.strength_model).toBe(0.8);
+    expect(wf.Sampler.inputs.model).toEqual(["LoraLoader_1", 0]);
+    expect(wf.Lora_1.inputs.lora_name).toBe("requested-lora-a.safetensors");
+    expect(wf.PositiveCLIP_Base.inputs.clip).toEqual(["CLIPLoader_Base", 0]);
+  });
+
+  test("37 unet-lora-on-shift-base: shift node rewired, sampler keeps reading it", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "37-unet-lora-on-shift-base",
+    );
+
+    const wf = workflows[0].workflow;
+    // Key order is compared explicitly because `toEqual` ignores it: the chain
+    // is spliced in between the loader and the shift node.
+    expect(Object.keys(wf)).toEqual(Object.keys(golden[0].workflow));
+    // The shift node is a consumer of the loader, so it moves to the chain tip…
+    expect(wf.ModelSamplingAuraFlow.inputs.model).toEqual(["Lora_2", 0]);
+    // …and the sampler keeps reading the shift node, so the shift still applies.
+    expect(wf.Sampler.inputs.model).toEqual(["ModelSamplingAuraFlow", 0]);
+    expect(wf.ModelSamplingAuraFlow.inputs.shift).toBe(5);
+    expect(wf.ModelSamplingAuraFlow.inputs.sampling).toBe("flow");
+    expect(wf.Lora_1.inputs.model).toEqual(["UNETLoader_Base", 0]);
+    expect(wf.Lora_2.inputs.model).toEqual(["Lora_1", 0]);
+    expect(wf.Lora_1.inputs.strength_model).toBe(0.9);
+    expect(wf.Lora_2.inputs.strength_model).toBe(0.3);
+    expect(wf.Lora_2.inputs).not.toHaveProperty("clip");
+    expect(wf.PositiveCLIP_Base.inputs.clip).toEqual(["CLIPLoader_Base", 0]);
+    expect(wf.VAEDecode_1.inputs.vae).toEqual(["VAELoader_Base", 0]);
+  });
+
+  test("38 unet-complex-overrides: prompt + negative + sampler + size + chain, tries=2", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "38-unet-complex-overrides",
+    );
+
+    expect(workflows).toHaveLength(2);
+    const clones = workflows.map((job) => job.workflow);
+    for (const [index, wf] of clones.entries()) {
+      // Key order is compared explicitly because `toEqual` ignores it: every
+      // clone gets its own chain spliced in right after the loader.
+      expect(Object.keys(wf)).toEqual(Object.keys(golden[index].workflow));
+      expect(wf.Sampler.inputs.steps).toBe(28);
+      expect(wf.Sampler.inputs.cfg).toBe(3.5);
+      expect(wf.Sampler.inputs.sampler_name).toBe("dpmpp_2m");
+      expect(wf.Sampler.inputs.scheduler).toBe("karras");
+      expect(wf.EmptyLatentImage.inputs.width).toBe(896);
+      expect(wf.EmptyLatentImage.inputs.height).toBe(1152);
+      expect(wf.SaveImage.inputs.filename_prefix).toBe("unet-complex");
+      expect(wf.PositiveCLIP_Base.inputs.text).toBe(
+        "unet base with every override",
+      );
+      expect(wf.NegativeCLIP_Base.inputs.text).toBe("blurry, low quality");
+      // CLIP text nodes keep reading the standalone CLIPLoader — a model-only
+      // LoRA chain rewires the model output only.
+      expect(wf.Sampler.inputs.positive).toEqual(["PositiveCLIP_Base", 0]);
+      expect(wf.Sampler.inputs.negative).toEqual(["NegativeCLIP_Base", 0]);
+      expect(wf.Lora_1.inputs.model).toEqual(["UNETLoader_Base", 0]);
+      expect(wf.Lora_2.inputs.model).toEqual(["Lora_1", 0]);
+      expect(wf.Sampler.inputs.model).toEqual(["Lora_2", 0]);
+    }
+    // tries > 1 always randomizes: the block seed 515151 is dropped, and every
+    // clone gets its own independently built chain.
+    expect(clones[0].Lora_1).not.toBe(clones[1].Lora_1);
+    expect(clones[0].Sampler.inputs.seed).not.toBe(
+      clones[1].Sampler.inputs.seed,
+    );
+    expect(clones[0].Sampler.inputs.seed).not.toBe(515151);
+  });
+
+  test("39 unet-lora-per-prompt-override: entry replaces, sibling inherits", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "39-unet-lora-per-prompt-override",
+    );
+
+    expect(workflows).toHaveLength(2);
+    // Key order is compared explicitly because `toEqual` ignores it. The two
+    // entries have different chain lengths, so their dicts differ by design.
+    const entryWf = workflows[0].workflow;
+    expect(Object.keys(entryWf)).toEqual(Object.keys(golden[0].workflow));
+    expect(entryWf.Lora_1.class_type).toBe("LoraLoaderModelOnly");
+    expect(entryWf.Lora_1.inputs.lora_name).toBe("entry-unet-lora.safetensors");
+    expect(entryWf.Lora_1.inputs.strength_model).toBe(0.45);
+    expect(entryWf.Lora_2).toBeUndefined();
+    expect(entryWf.Sampler.inputs.model).toEqual(["Lora_1", 0]);
+    // The other prompt entry keeps the block's two-node chain untouched.
+    const inheritWf = workflows[1].workflow;
+    expect(Object.keys(inheritWf)).toEqual(Object.keys(golden[1].workflow));
+    expect(inheritWf.Lora_1.inputs.lora_name).toBe(
+      "parent-unet-lora-a.safetensors",
+    );
+    expect(inheritWf.Lora_2.inputs.lora_name).toBe(
+      "parent-unet-lora-b.safetensors",
+    );
+    expect(inheritWf.Sampler.inputs.model).toEqual(["Lora_2", 0]);
+    expect(inheritWf.PositiveCLIP_Base.inputs.clip).toEqual([
+      "CLIPLoader_Base",
+      0,
+    ]);
+  });
+
+  test("40 unet-brace-variants-with-loras: every variant gets its own wired chain", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "40-unet-brace-variants-with-loras",
+    );
+
+    expect(workflows).toHaveLength(4);
+    expect(
+      workflows.map((job) => job.workflow.PositiveCLIP_Base.inputs.text),
+    ).toEqual([
+      "a red car on a mountain road",
+      "a red car on a beach road",
+      "a blue car on a mountain road",
+      "a blue car on a beach road",
+    ]);
+    // Brace expansion produced 4 variants, so the block seed 777 is dropped
+    // from every variant and each build draws its own random seed.
+    const seeds = workflows.map((job) => job.workflow.Sampler.inputs.seed);
+    expect(new Set(seeds).size).toBe(4);
+    for (const seed of seeds) {
+      expect(seed).not.toBe(777);
+    }
+    for (const [index, job] of workflows.entries()) {
+      expect(job.input.seed).toBeUndefined();
+      const wf = job.workflow;
+      // Key order is compared explicitly because `toEqual` ignores it: every
+      // variant gets its own chain between the loader and the shift node.
+      expect(Object.keys(wf)).toEqual(Object.keys(golden[index].workflow));
+      expect(wf.Lora_1.class_type).toBe("LoraLoaderModelOnly");
+      expect(wf.Lora_1.inputs.model).toEqual(["UNETLoader_Base", 0]);
+      expect(wf.ModelSamplingAuraFlow.inputs.model).toEqual(["Lora_1", 0]);
+      expect(wf.Sampler.inputs.model).toEqual(["ModelSamplingAuraFlow", 0]);
+    }
+    // Each variant rebuilt its own chain — the node objects are not shared.
+    expect(workflows[0].workflow.Lora_1).not.toBe(workflows[1].workflow.Lora_1);
   });
 });

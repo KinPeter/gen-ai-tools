@@ -33,7 +33,7 @@ A list of blocks; each block shares its settings across a `prompts` list, and pe
   steps: 20
   cfg: 3.5
   size: { width: 832, height: 1216 }
-  loras: # Lora_1..Lora_N chain after the checkpoint
+  loras: # Lora_1..Lora_N chain after the base's model loader
     - name: nice-lora.safetensors
       strength: 1
   clip-skip: -2
@@ -54,8 +54,8 @@ A list of blocks; each block shares its settings across a `prompts` list, and pe
 - `{a, b}` expands to one workflow per option; multiple groups give the cartesian product. A fixed `seed` is dropped when expansion yields more than one variant.
 - `seed`: number (kept only when `tries` is unset or 1), `"random"`, or omitted (= random).
 - `tries`: integer ≥ 1, default 1 — each try is a separate queued job.
-- `loras`: at least one `{name, strength}`; per-prompt `loras` replace the block's entirely. Needs a base workflow with a `CheckpointLoaderSimple` — the UNETLoader-based `example-krea2-base-workflow` has no LoRA support yet.
-- `clip-skip`: overrides `stop_at_clip_layer`, creating a `CLIPSetLastLayer` node if the base has none.
+- `loras`: at least one `{name, strength}`; per-prompt `loras` replace the block's entirely. Works on both loaders: `LoraLoader` after a `CheckpointLoaderSimple` (`strength` also sets `strength_clip`) or `LoraLoaderModelOnly` after a `UNETLoader` such as `example-unet-base-workflow` (`strength_model` only).
+- `clip-skip`: overrides `stop_at_clip_layer`, creating a `CLIPSetLastLayer` node if the base has none; needs a `CheckpointLoaderSimple`, so it errors on a `UNETLoader` base.
 
 Full details: [input guidelines](./inputs/input-guidelines.md) and [example input](./inputs/input.example.yaml). Base workflow JSONs live in `workflows/`.
 

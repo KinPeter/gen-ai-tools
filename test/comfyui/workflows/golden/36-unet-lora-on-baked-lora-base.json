@@ -1,0 +1,115 @@
+[
+  {
+    "workflow": {
+      "UNETLoader_Base": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "<Krea2 / Flux2 Klein / MOSS based model name>.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "Lora_1": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "lora_name": "requested-lora-a.safetensors",
+          "strength_model": 0.6,
+          "model": ["UNETLoader_Base", 0]
+        }
+      },
+      "Lora_2": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "lora_name": "requested-lora-b.safetensors",
+          "strength_model": 0.4,
+          "model": ["Lora_1", 0]
+        }
+      },
+      "CLIPLoader_Base": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "<text encoder matching the quant of the model!>.safetensors",
+          "type": "<krea2 / flux2 / moss_image>"
+        }
+      },
+      "VAELoader_Base": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "<recommended VAE for the model>.safetensors"
+        }
+      },
+      "LoraLoader_1": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "lora_name": "<LoRA name>.safetensors",
+          "strength_model": 0.8,
+          "model": ["Lora_2", 0]
+        }
+      },
+      "EmptyLatentImage": {
+        "class_type": "EmptyLatentImage",
+        "inputs": {
+          "batch_size": 1,
+          "height": 1536,
+          "width": 1024
+        }
+      },
+      "PositiveCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CLIPLoader_Base", 0],
+          "text": "requested loras plus the baked one"
+        }
+      },
+      "NegativeCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CLIPLoader_Base", 0],
+          "text": ""
+        }
+      },
+      "Sampler": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": ["LoraLoader_1", 0],
+          "seed": 1000000001,
+          "steps": 8,
+          "cfg": 1,
+          "sampler_name": "er_sde",
+          "scheduler": "simple",
+          "positive": ["PositiveCLIP_Base", 0],
+          "negative": ["NegativeCLIP_Base", 0],
+          "latent_image": ["EmptyLatentImage", 0],
+          "denoise": 1
+        }
+      },
+      "VAEDecode_1": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": ["Sampler", 0],
+          "vae": ["VAELoader_Base", 0]
+        }
+      },
+      "SaveImage": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": ["VAEDecode_1", 0],
+          "filename_prefix": "krea2"
+        }
+      }
+    },
+    "input": {
+      "base-workflow": "unet-with-lora",
+      "loras": [
+        {
+          "name": "requested-lora-a.safetensors",
+          "strength": 0.6
+        },
+        {
+          "name": "requested-lora-b.safetensors",
+          "strength": 0.4
+        }
+      ],
+      "prompt": ["requested loras plus the baked one"]
+    }
+  }
+]

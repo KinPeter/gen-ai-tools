@@ -11,8 +11,8 @@ import {
   applyClipSkipOverride,
 } from "../../../comfyui/workflow-builder/clip.mjs";
 import {
-  findNodeLabel,
   findNode,
+  findModelLoader,
 } from "../../../comfyui/workflow-builder/utils.mjs";
 import { loadWorkflows } from "../../../comfyui/workflow-builder/workflow.mjs";
 
@@ -75,9 +75,9 @@ describe("clip.mjs unit tests", () => {
         "utf8",
       ),
     );
-    const checkpointLabel = findNodeLabel(wf, "CheckpointLoaderSimple");
+    const loader = findModelLoader(wf);
     const sampler = findNode(wf, "KSampler") ?? wf.Sampler;
-    applyClipSkipOverride(wf, -1, undefined, checkpointLabel, sampler);
+    applyClipSkipOverride(wf, -1, undefined, loader, sampler);
     expect(wf.ClipSkip_Base).toBeDefined();
     expect(wf.ClipSkip_Base.class_type).toBe("CLIPSetLastLayer");
     expect(wf.ClipSkip_Base.inputs.stop_at_clip_layer).toBe(-1);
@@ -97,11 +97,11 @@ describe("clip.mjs unit tests", () => {
         "utf8",
       ),
     );
-    const checkpointLabel = findNodeLabel(wf, "CheckpointLoaderSimple");
+    const loader = findModelLoader(wf);
     const sampler = findNode(wf, "KSampler") ?? wf.Sampler;
     // Before override, value is -2
     expect(wf.ClipSkip_Base.inputs.stop_at_clip_layer).toBe(-2);
-    applyClipSkipOverride(wf, -1, undefined, checkpointLabel, sampler);
+    applyClipSkipOverride(wf, -1, undefined, loader, sampler);
     expect(wf.ClipSkip_Base.inputs.stop_at_clip_layer).toBe(-1);
     // Clips still point to ClipSkip_Base
     expect(wf.PositiveCLIP_Base.inputs.clip).toEqual(["ClipSkip_Base", 0]);
@@ -150,19 +150,64 @@ describe("clip.mjs unit tests", () => {
         wf.Lora_2 = values.Lora_2;
       }
     }
-    const checkpointLabel = findNodeLabel(wf, "CheckpointLoaderSimple");
+    const loader = findModelLoader(wf);
     const sampler = findNode(wf, "KSampler") ?? wf.Sampler;
     const loras = [
       { name: "a.safetensors", strength: 1 },
       { name: "b.safetensors", strength: 0.5 },
     ];
-    applyClipSkipOverride(wf, -2, loras, checkpointLabel, sampler);
+    applyClipSkipOverride(wf, -2, loras, loader, sampler);
     expect(wf.ClipSkip_Base).toBeDefined();
     expect(wf.ClipSkip_Base.inputs.clip).toEqual(["Lora_2", 1]);
     expect(wf.ClipSkip_Base.inputs.stop_at_clip_layer).toBe(-2);
     // Positive/negative clips rewired to ClipSkip_Base
     expect(wf.PositiveCLIP_Base.inputs.clip).toEqual(["ClipSkip_Base", 0]);
     expect(wf.NegativeCLIP_Base.inputs.clip).toEqual(["ClipSkip_Base", 0]);
+  });
+
+  it("applyClipSkipOverride throws when the base has no model loader at all", () => {
+    // The throw guards CREATION. With no loader there is not even a label to
+    // anchor the new node on, so the guard must report the documented message
+    // instead of raising a raw TypeError reading `loader.clipOutput`.
+    const wf = {
+      DummyLoader_Base: {
+        class_type: "DummyLoader",
+        inputs: { ckpt_name: "dummy.safetensors" },
+      },
+      PositiveCLIP_Base: {
+        class_type: "CLIPTextEncode",
+        inputs: { clip: ["DummyLoader_Base", 1], text: "hello" },
+      },
+      NegativeCLIP_Base: {
+        class_type: "CLIPTextEncode",
+        inputs: { clip: ["DummyLoader_Base", 1], text: "bye" },
+      },
+      Sampler: {
+        class_type: "KSampler",
+        inputs: {
+          positive: ["PositiveCLIP_Base", 0],
+          negative: ["NegativeCLIP_Base", 0],
+        },
+      },
+    };
+    // undefined / null stand for a base with neither loader class, clipOutput
+    // null for a UNETLoader base: both take the same documented failure.
+    for (const loader of [
+      undefined,
+      null,
+      { label: "UNETLoader_Base", clipOutput: null },
+    ]) {
+      expect(() =>
+        applyClipSkipOverride(wf, -1, undefined, loader, wf.Sampler),
+      ).toThrow(
+        '"clip-skip" requires a CheckpointLoaderSimple node in the base workflow',
+      );
+    }
+    // It failed before mutating anything: no half-built node, and the CLIP
+    // text nodes still read the loader they started on.
+    expect(wf.ClipSkip_Base).toBeUndefined();
+    expect(wf.PositiveCLIP_Base.inputs.clip).toEqual(["DummyLoader_Base", 1]);
+    expect(wf.NegativeCLIP_Base.inputs.clip).toEqual(["DummyLoader_Base", 1]);
   });
 
   it("rewireClipsTo uses sampler refs when valid", () => {
@@ -496,5 +541,32 @@ prompts: [{}]
         expect(keys[cpIndex + 1]).toBe("ClipSkip_Base");
       },
     );
+  });
+
+  it("rejects clip-skip creation on a UNETLoader base because it has no CLIP output", async () => {
+    // CLIPSetLastLayer reads the checkpoint's CLIP output, so a model-only base
+    // must fail loudly instead of dangling its CLIP text nodes — with and
+    // without a LoRA chain, because the clip source would be the last LoRA.
+    // `unet-base` is the fixture mirror of example-unet-base-workflow, so this
+    // test reads no file outside test/.
+    for (const text of [
+      ["base-workflow: unet-base", "clip-skip: -1", "prompts: [{}]"].join("\n"),
+      [
+        "base-workflow: unet-base",
+        "loras:",
+        "  - name: unet-lora.safetensors",
+        "    strength: 0.7",
+        "clip-skip: -2",
+        "prompts: [{}]",
+      ].join("\n"),
+    ]) {
+      await withInput(text, async (name, inputsDir) => {
+        await expect(
+          loadWorkflows(name, inputsDir, FIXTURES_WORKFLOWS_DIR),
+        ).rejects.toThrow(
+          '"clip-skip" requires a CheckpointLoaderSimple node in the base workflow',
+        );
+      });
+    }
   });
 });

@@ -2,37 +2,29 @@
  * Regenerate golden JSON files for e2e workflow building tests.
  *
  * This script mimics the exact seed sequence that the test suite uses:
- * each test runs in isolation (isolate: true), so Math.random._callCount
- * is reset to 0 before each test. Therefore every test starts from
- * DETERMINISTIC_SEEDS[0].
+ * each test runs in isolation (isolate: true), so the patched `Math.random`
+ * restarts at the first seed for every test. Therefore every input here starts
+ * from the same index 0 (see test/support/deterministic-seeds.mjs).
+ *
+ * The goldens it writes are Prettier-formatted, so `npm run format:check`
+ * passes straight after regeneration: regenerate, run `npm run test`, review
+ * the diff.
  */
 
 import { readdir, rm, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { format, resolveConfig } from "prettier";
+import { deterministicRandom } from "../../support/deterministic-seeds.mjs";
 import { loadWorkflows } from "../../../comfyui/workflow-builder/workflow.mjs";
 
 const FIXTURES_BASE = path.join(import.meta.dirname, "base-workflows");
 const INPUTS_DIR = path.join(import.meta.dirname, "inputs");
 const GOLDEN_DIR = path.join(import.meta.dirname, "golden");
 
-// These are the deterministic seeds, indexed per test (each test starts at 0).
-const DETERMINISTIC_SEEDS = [
-  1000000001, 1000000002, 1000000003, 2000000001, 2000000002, 3000000001,
-  3000000002, 3000000003, 3000000004, 4000000001, 4000000002, 4000000003,
-  5000000001, 6000000001, 6000000002, 6000000003,
-];
-
 const _origRandom = Math.random;
 
-async function generateGoldenForInput(inputName, callCountRef) {
-  const _origRand = Math.random;
-  Math.random = () => {
-    const seqIdx = callCountRef.current++;
-    if (seqIdx < DETERMINISTIC_SEEDS.length) {
-      return DETERMINISTIC_SEEDS[seqIdx] / Number.MAX_SAFE_INTEGER;
-    }
-    return _origRandom();
-  };
+async function generateGoldenForInput(inputName, seedState) {
+  Math.random = deterministicRandom(seedState, _origRandom);
 
   try {
     const workflows = await loadWorkflows(inputName, INPUTS_DIR, FIXTURES_BASE);
@@ -40,8 +32,25 @@ async function generateGoldenForInput(inputName, callCountRef) {
   } catch (err) {
     return { ok: false, error: err.message };
   } finally {
-    Math.random = _origRand;
+    Math.random = _origRandom;
   }
+}
+
+/**
+ * Write one golden in the committed style: Prettier-formatted JSON. The repo's
+ * required QA gate is `npm run format:check`, so the generator cannot leave its
+ * output as raw `JSON.stringify` or every regeneration breaks the suite's gate.
+ */
+async function writeGolden(baseName, outputs) {
+  const goldenPath = path.join(GOLDEN_DIR, `${baseName}.json`);
+  const config = await resolveConfig(goldenPath);
+  const formatted = await format(`${JSON.stringify(outputs, null, 2)}\n`, {
+    ...config,
+    parser: "json",
+    filepath: goldenPath,
+  });
+  await writeFile(goldenPath, formatted, "utf8");
+  return goldenPath;
 }
 
 async function main() {
@@ -63,20 +72,16 @@ async function main() {
 
   for (const inputFile of inputs) {
     const baseName = inputFile.replace(/\.yaml$/, "");
-    const callCountRef = { current: 0 };
-    const result = await generateGoldenForInput(baseName, callCountRef);
+    // Fresh counter per input: mirrors the suite resetting per test.
+    const seedState = { count: 0 };
+    const result = await generateGoldenForInput(baseName, seedState);
 
     if (result.ok) {
       const outputs = result.workflows.map((w) => ({
         workflow: w.workflow,
         input: w.input,
       }));
-      const goldenPath = path.join(GOLDEN_DIR, `${baseName}.json`);
-      await writeFile(
-        goldenPath,
-        JSON.stringify(outputs, null, 2) + "\n",
-        "utf8",
-      );
+      const goldenPath = await writeGolden(baseName, outputs);
       console.log(
         `✓ ${inputFile} → ${result.count} workflow(s) → ${goldenPath}`,
       );

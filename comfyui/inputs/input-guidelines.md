@@ -87,23 +87,29 @@ Each prompt entry inherits block-level settings and can override:
 
 ## LoRA Chains
 
-LoRAs are wired into the workflow as a chain after `CheckpointLoaderSimple`. LoRAs are only supported on base workflows that have a checkpoint loader; UNETLoader-based workflows such as `example-krea2-base-workflow` do not support them yet.
+`loras` inserts `Lora_1..Lora_N` nodes immediately after the base workflow's model loader; the wiring style comes from that loader, not from the input:
+
+- **Checkpoint base** (`CheckpointLoaderSimple`): `LoraLoader` nodes chained from the checkpoint, `strength` applied to `strength_model` **and** `strength_clip`.
+- **UNETLoader base** (`UNETLoader` with its own `CLIPLoader` / `VAELoader`, e.g. `example-unet-base-workflow`): `LoraLoaderModelOnly` nodes chained from the loader, `strength` applied to `strength_model` only — these LoRAs never touch the text encoder.
+
+Every node that reads the loader's model output moves to the last LoRA, including a `ModelSamplingAuraFlow` shift node when the base carries one (`example-unet-with-shift-workflow`); the sampler keeps reading that node because in these bases the shift node is its only model source, so the shift setting survives. A base that wired **both** the sampler and a shift node to the loader would move both consumers to `Lora_N` and orphan the shift node.
 
 **Definition:**
 
 ```yaml
 loras:
-  - name: XL-FRover(WuWa).safetensors
+  - name: one-shiny-lora.safetensors
     strength: 1.2
-  - name: creampie_1.7.1.safetensors
+  - name: other-fancy-lora.safetensors
     strength: 0.8
 ```
 
 - `name` — `.safetensors` file name (not full path).
-- `strength` — applied equally to `strength_model` and `strength_clip`.
+- `strength` — applied to `strength_model`, and to `strength_clip` as well on checkpoint bases.
 - LoRAs chain sequentially: first LoRA loads, then the next, etc.
-- Last LoRA becomes chain tip; all original model/clip consumers are rewired to it.
+- Last LoRA becomes chain tip; the loader's consumers are rewired to it (model on both loaders, CLIP only on a checkpoint base).
 - `VAEDecode` is **not** rewired — it keeps its VAE port.
+- A base that already carries its own `LoraLoaderModelOnly` node (`example-unet-with-lora-workflow.json`, the retired `ultrakr2-lora.json`) is not special-cased: its sampler is already wired to that baked node, so only the baked node's own input moves — `UNETLoader_Base → Lora_1..Lora_N → baked node → Sampler`. Both LoRAs apply and nothing is lost, but the baked node's `strength_model` is fixed in the JSON and no input key (not even a per-prompt `loras` override, which replaces only the generated list) can tune or drop it, so the effective chain is baked **plus** requested — prefer a clean base plus `loras:`. Mixing does fail loudly when the base's baked chain already owns the `Lora_1..Lora_N` labels (`example-comfy-workflow.json`): `loras` is then rejected as a label collision.
 
 **Block vs. per-prompt:**
 
@@ -178,7 +184,7 @@ Seed behavior depends on the `seed` value and `tries` count:
 
 - Same base file is **cached** and read once per session.
 - Each block gets a **deep clone** of the base workflow (`structuredClone`).
-- Required node types: `KSampler`, plus a model loader — `CheckpointLoaderSimple` (SDXL-style) or `UNETLoader` (Krea2-style, with its own `CLIPLoader` and `VAELoader`).
+- Required node types: `KSampler`, plus a model loader — `CheckpointLoaderSimple` (SDXL-style) or `UNETLoader` (Krea2-style, with its own `CLIPLoader` and `VAELoader`). `clip-skip` additionally requires `CheckpointLoaderSimple`, because `CLIPSetLastLayer` reads the checkpoint's CLIP output; a `UNETLoader` base is rejected with an error.
 - `EmptyLatentImage` and `SaveImage` are handled gracefully.
 
 ### Available Base Workflows

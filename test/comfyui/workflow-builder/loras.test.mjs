@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { buildLoraChain } from "../../../comfyui/workflow-builder/loras.mjs";
 import { loadWorkflows } from "../../../comfyui/workflow-builder/workflow.mjs";
 
 const FIXTURES_WORKFLOWS_DIR = path.join(
@@ -49,6 +50,15 @@ describe("loras.mjs", () => {
             strength_clip: 1,
           },
         });
+        // Key order is load-bearing in the committed goldens: a checkpoint
+        // LoRA stores its links first, then the LoRA settings.
+        expect(Object.keys(wf.Lora_1.inputs)).toEqual([
+          "model",
+          "clip",
+          "lora_name",
+          "strength_model",
+          "strength_clip",
+        ]);
         // ClipSkip_Base exists in the base; no clip-skip override means its
         // clip reference is rewired by LoRA, but stop_at_clip_layer is unchanged.
         expect(wf.ClipSkip_Base).toBeDefined();
@@ -137,7 +147,7 @@ describe("loras.mjs", () => {
     }
   });
 
-  it("rejects loras when the base workflow has no CheckpointLoaderSimple", async () => {
+  it("rejects loras when the base workflow has no model loader", async () => {
     await withInput(
       [
         "base-workflow: no-checkpoint",
@@ -149,7 +159,9 @@ describe("loras.mjs", () => {
       async (name, inputsDir) => {
         await expect(
           loadWorkflows(name, inputsDir, FIXTURES_WORKFLOWS_DIR),
-        ).rejects.toThrow("requires a CheckpointLoaderSimple node");
+        ).rejects.toThrow(
+          '"loras" requires a CheckpointLoaderSimple or UNETLoader node in the base workflow',
+        );
       },
     );
   });
@@ -269,5 +281,61 @@ describe("loras.mjs", () => {
         }
       },
     );
+  });
+
+  // The pure half of loras.mjs: the node dict, its labels and the input key
+  // order the committed goldens pin.
+  describe("buildLoraChain", () => {
+    it("chains LoraLoader nodes with the links first on a checkpoint base", () => {
+      const chain = buildLoraChain(
+        { label: "CheckpointLoader_Base", modelOnly: false, clipOutput: 1 },
+        [
+          { name: "a.safetensors", strength: 1 },
+          { name: "b.safetensors", strength: 0.4 },
+        ],
+      );
+      expect(Object.keys(chain)).toEqual(["Lora_1", "Lora_2"]);
+      // Key order is load-bearing: the goldens store the checkpoint shape with
+      // its links before the LoRA settings.
+      expect(Object.keys(chain.Lora_1.inputs)).toEqual([
+        "model",
+        "clip",
+        "lora_name",
+        "strength_model",
+        "strength_clip",
+      ]);
+      expect(chain.Lora_1.inputs).toEqual({
+        model: ["CheckpointLoader_Base", 0],
+        clip: ["CheckpointLoader_Base", 1],
+        lora_name: "a.safetensors",
+        strength_model: 1,
+        strength_clip: 1,
+      });
+      // Every node hangs off the previous one; `strength` drives both sockets.
+      expect(chain.Lora_2.inputs.model).toEqual(["Lora_1", 0]);
+      expect(chain.Lora_2.inputs.clip).toEqual(["Lora_1", 1]);
+      expect(chain.Lora_2.inputs.strength_clip).toBe(0.4);
+    });
+
+    it("chains model-only nodes with the settings first on a UNET base", () => {
+      const chain = buildLoraChain(
+        { label: "UNETLoader_Base", modelOnly: true, clipOutput: null },
+        [{ name: "unet-lora.safetensors", strength: 0.7 }],
+      );
+      expect(Object.keys(chain)).toEqual(["Lora_1"]);
+      expect(Object.keys(chain.Lora_1.inputs)).toEqual([
+        "lora_name",
+        "strength_model",
+        "model",
+      ]);
+      expect(chain.Lora_1.inputs).toEqual({
+        lora_name: "unet-lora.safetensors",
+        strength_model: 0.7,
+        model: ["UNETLoader_Base", 0],
+      });
+      // A model-only chain has no clip sockets at all — strength_model only.
+      expect(chain.Lora_1.inputs).not.toHaveProperty("clip");
+      expect(chain.Lora_1.inputs).not.toHaveProperty("strength_clip");
+    });
   });
 });

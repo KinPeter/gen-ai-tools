@@ -1,0 +1,236 @@
+[
+  {
+    "workflow": {
+      "UNETLoader_Base": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "<Krea2 / Flux2 Klein / MOSS based model name>.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "Lora_1": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "lora_name": "unet-style-lora.safetensors",
+          "strength_model": 0.85,
+          "model": ["UNETLoader_Base", 0]
+        }
+      },
+      "Lora_2": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "lora_name": "unet-detail-lora.safetensors",
+          "strength_model": 0.35,
+          "model": ["Lora_1", 0]
+        }
+      },
+      "CLIPLoader_Base": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "<text encoder matching the quant of the model!>.safetensors",
+          "type": "<krea2 / flux2 / moss_image>"
+        }
+      },
+      "VAELoader_Base": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "<recommended VAE for the model>.safetensors"
+        }
+      },
+      "EmptyLatentImage": {
+        "class_type": "EmptyLatentImage",
+        "inputs": {
+          "batch_size": 1,
+          "height": 1152,
+          "width": 896
+        }
+      },
+      "PositiveCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CLIPLoader_Base", 0],
+          "text": "unet base with every override"
+        }
+      },
+      "NegativeCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CLIPLoader_Base", 0],
+          "text": "blurry, low quality"
+        }
+      },
+      "Sampler": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": ["Lora_2", 0],
+          "seed": 1000000001,
+          "steps": 28,
+          "cfg": 3.5,
+          "sampler_name": "dpmpp_2m",
+          "scheduler": "karras",
+          "positive": ["PositiveCLIP_Base", 0],
+          "negative": ["NegativeCLIP_Base", 0],
+          "latent_image": ["EmptyLatentImage", 0],
+          "denoise": 1
+        }
+      },
+      "VAEDecode_1": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": ["Sampler", 0],
+          "vae": ["VAELoader_Base", 0]
+        }
+      },
+      "SaveImage": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": ["VAEDecode_1", 0],
+          "filename_prefix": "unet-complex"
+        }
+      }
+    },
+    "input": {
+      "base-workflow": "unet-base",
+      "steps": 28,
+      "cfg": 3.5,
+      "sampler": "dpmpp_2m",
+      "scheduler": "karras",
+      "size": {
+        "width": 896,
+        "height": 1152
+      },
+      "filename-prefix": "unet-complex",
+      "seed": 515151,
+      "tries": 2,
+      "loras": [
+        {
+          "name": "unet-style-lora.safetensors",
+          "strength": 0.85
+        },
+        {
+          "name": "unet-detail-lora.safetensors",
+          "strength": 0.35
+        }
+      ],
+      "prompt": ["unet base with every override"],
+      "negative-prompt": ["blurry", "low quality"]
+    }
+  },
+  {
+    "workflow": {
+      "UNETLoader_Base": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "<Krea2 / Flux2 Klein / MOSS based model name>.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "Lora_1": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "lora_name": "unet-style-lora.safetensors",
+          "strength_model": 0.85,
+          "model": ["UNETLoader_Base", 0]
+        }
+      },
+      "Lora_2": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "lora_name": "unet-detail-lora.safetensors",
+          "strength_model": 0.35,
+          "model": ["Lora_1", 0]
+        }
+      },
+      "CLIPLoader_Base": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "<text encoder matching the quant of the model!>.safetensors",
+          "type": "<krea2 / flux2 / moss_image>"
+        }
+      },
+      "VAELoader_Base": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "<recommended VAE for the model>.safetensors"
+        }
+      },
+      "EmptyLatentImage": {
+        "class_type": "EmptyLatentImage",
+        "inputs": {
+          "batch_size": 1,
+          "height": 1152,
+          "width": 896
+        }
+      },
+      "PositiveCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CLIPLoader_Base", 0],
+          "text": "unet base with every override"
+        }
+      },
+      "NegativeCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CLIPLoader_Base", 0],
+          "text": "blurry, low quality"
+        }
+      },
+      "Sampler": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": ["Lora_2", 0],
+          "seed": 1000000002,
+          "steps": 28,
+          "cfg": 3.5,
+          "sampler_name": "dpmpp_2m",
+          "scheduler": "karras",
+          "positive": ["PositiveCLIP_Base", 0],
+          "negative": ["NegativeCLIP_Base", 0],
+          "latent_image": ["EmptyLatentImage", 0],
+          "denoise": 1
+        }
+      },
+      "VAEDecode_1": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": ["Sampler", 0],
+          "vae": ["VAELoader_Base", 0]
+        }
+      },
+      "SaveImage": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": ["VAEDecode_1", 0],
+          "filename_prefix": "unet-complex"
+        }
+      }
+    },
+    "input": {
+      "base-workflow": "unet-base",
+      "steps": 28,
+      "cfg": 3.5,
+      "sampler": "dpmpp_2m",
+      "scheduler": "karras",
+      "size": {
+        "width": 896,
+        "height": 1152
+      },
+      "filename-prefix": "unet-complex",
+      "seed": 515151,
+      "tries": 2,
+      "loras": [
+        {
+          "name": "unet-style-lora.safetensors",
+          "strength": 0.85
+        },
+        {
+          "name": "unet-detail-lora.safetensors",
+          "strength": 0.35
+        }
+      ],
+      "prompt": ["unet base with every override"],
+      "negative-prompt": ["blurry", "low quality"]
+    }
+  }
+]

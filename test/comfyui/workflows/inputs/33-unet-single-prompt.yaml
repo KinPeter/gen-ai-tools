@@ -1,0 +1,5 @@
+# e2e-33: Single prompt on a checkpoint-free UNETLoader base (UNETLoader + CLIPLoader + VAELoader)
+- base-workflow: unet-base
+  prompts:
+    - prompt:
+        - a red fox in autumn light

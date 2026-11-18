@@ -1,14 +1,66 @@
-import { findNodeLabel } from "./utils.mjs";
+import {
+  findModelLoader,
+  insertNodesAfter,
+  rewireLoaderRefs,
+} from "./utils.mjs";
 
+// One node shape per loader kind. The queue API is order-independent, but the
+// committed golden files pin key order (JSON.stringify emits keys in insertion
+// order), so this shape order is load-bearing for them: the checkpoint node
+// lists its links first, the model-only node the LoRA settings first.
+// Reordering here rewrites the LoRA nodes of every affected golden.
+const LORA_NODE_SHAPES = {
+  modelOnly: (prev, lora) => ({
+    class_type: "LoraLoaderModelOnly",
+    inputs: {
+      lora_name: lora.name,
+      strength_model: lora.strength,
+      model: [prev, 0],
+    },
+  }),
+  checkpoint: (prev, lora) => ({
+    class_type: "LoraLoader",
+    inputs: {
+      model: [prev, 0],
+      clip: [prev, 1],
+      lora_name: lora.name,
+      strength_model: lora.strength,
+      strength_clip: lora.strength,
+    },
+  }),
+};
+
+/**
+ * Build the ordered Lora_1..Lora_N node dict for the loader's wiring style: a
+ * checkpoint chains LoraLoader nodes with model + clip links, a model-only
+ * loader (UNETLoader) chains LoraLoaderModelOnly nodes with a model link only.
+ * Pure — the workflow is not touched.
+ */
+export function buildLoraChain(loader, loras) {
+  const shape = LORA_NODE_SHAPES[loader.modelOnly ? "modelOnly" : "checkpoint"];
+  const chain = {};
+  let prev = loader.label;
+  for (const [index, lora] of loras.entries()) {
+    const label = `Lora_${index + 1}`;
+    chain[label] = shape(prev, lora);
+    prev = label;
+  }
+  return chain;
+}
+
+/**
+ * Wire the item's LoRAs into the workflow: chain them after the base workflow's
+ * model loader and move that loader's consumers onto the last LoRA.
+ */
 export function applyLoras(workflow, item) {
-  const checkpointLabel = findNodeLabel(workflow, "CheckpointLoaderSimple");
-  if (checkpointLabel === undefined) {
+  const loader = findModelLoader(workflow);
+  if (loader === undefined) {
     throw new Error(
-      '"loras" requires a CheckpointLoaderSimple node in the base workflow',
+      '"loras" requires a CheckpointLoaderSimple or UNETLoader node in the base workflow',
     );
   }
-  const loras = item.loras;
-  const labels = loras.map((_, i) => `Lora_${i + 1}`);
+
+  const labels = item.loras.map((_, i) => `Lora_${i + 1}`);
   for (const label of labels) {
     if (label in workflow) {
       throw new Error(
@@ -17,49 +69,10 @@ export function applyLoras(workflow, item) {
     }
   }
 
-  const newNodes = {};
-  let prev = checkpointLabel;
-  for (let i = 0; i < loras.length; i++) {
-    const label = labels[i];
-    newNodes[label] = {
-      class_type: "LoraLoader",
-      inputs: {
-        model: [prev, 0],
-        clip: [prev, 1],
-        lora_name: loras[i].name,
-        strength_model: loras[i].strength,
-        strength_clip: loras[i].strength,
-      },
-    };
-    prev = label;
-  }
-
-  // Rebuild the node object with the new Lora labels inserted immediately
-  // after the checkpoint key (cosmetic — the API is order-independent).
-  const originalKeys = Object.keys(workflow);
-  const values = {};
-  for (const key of originalKeys) values[key] = workflow[key];
-  for (const key of originalKeys) delete workflow[key];
-  const cpIndex = originalKeys.indexOf(checkpointLabel);
-  for (let i = 0; i < originalKeys.length; i++) {
-    const key = originalKeys[i];
-    workflow[key] = values[key];
-    if (i === cpIndex) {
-      for (const label of labels) workflow[label] = newNodes[label];
-    }
-  }
-
-  // Rewire pre-existing nodes only (the new Lora labels are not in
-  // originalKeys, so they are naturally skipped).
+  const chain = buildLoraChain(loader, item.loras);
   const lastLabel = labels[labels.length - 1];
-  for (const key of originalKeys) {
-    const inputs = values[key]?.inputs;
-    if (!inputs || typeof inputs !== "object") continue;
-    for (const [inputKey, value] of Object.entries(inputs)) {
-      if (!Array.isArray(value) || value.length !== 2) continue;
-      if (value[0] !== checkpointLabel) continue;
-      if (value[1] === 0) inputs[inputKey] = [lastLabel, 0];
-      else if (value[1] === 1) inputs[inputKey] = [lastLabel, 1];
-    }
-  }
+  // Rewire before inserting: Lora_1 hangs off the loader itself, so rewiring
+  // afterwards would move its own link onto the last LoRA of the chain.
+  rewireLoaderRefs(workflow, loader.label, lastLabel, loader.clipOutput);
+  insertNodesAfter(workflow, loader.label, chain);
 }

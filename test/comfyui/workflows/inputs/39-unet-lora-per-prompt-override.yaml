@@ -1,0 +1,16 @@
+# e2e-39: Per-prompt loras override on a UNETLoader base — the entry replaces the parent's
+# chain wholesale, the other prompt entry inherits it.
+- base-workflow: unet-base
+  loras:
+    - name: parent-unet-lora-a.safetensors
+      strength: 0.8
+    - name: parent-unet-lora-b.safetensors
+      strength: 0.6
+  prompts:
+    - prompt:
+        - entry replaces the parent chain
+      loras:
+        - name: entry-unet-lora.safetensors
+          strength: 0.45
+    - prompt:
+        - entry inherits the parent chain

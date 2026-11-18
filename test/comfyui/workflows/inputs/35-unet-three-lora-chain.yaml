@@ -1,0 +1,12 @@
+# e2e-35: Three-LoRA chain on a UNETLoader base — LoraLoaderModelOnly nodes chained Lora_1 -> Lora_2 -> Lora_3
+- base-workflow: unet-base
+  loras:
+    - name: unet-first-lora.safetensors
+      strength: 1.0
+    - name: unet-second-lora.safetensors
+      strength: 0.5
+    - name: unet-third-lora.safetensors
+      strength: 0.25
+  prompts:
+    - prompt:
+        - three model-only loras chained

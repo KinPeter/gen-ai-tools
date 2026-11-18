@@ -1,0 +1,12 @@
+# e2e-37: LoRAs on a UNETLoader base with a ModelSamplingAuraFlow shift node.
+# The shift node consumes the loader's model output, so it is rewired onto the last
+# LoRA and the sampler keeps reading it — the shift setting survives the LoRA chain.
+- base-workflow: unet-with-shift
+  loras:
+    - name: shift-lora-a.safetensors
+      strength: 0.9
+    - name: shift-lora-b.safetensors
+      strength: 0.3
+  prompts:
+    - prompt:
+        - loras under a shift node

@@ -1,6 +1,6 @@
 import {
   findNode,
-  findNodeLabel,
+  findModelLoader,
   findPositiveClip,
   findNegativeClip,
   getRandomSeed,
@@ -104,12 +104,11 @@ export function applyOverrides(workflow, item, forceRandomSeed) {
   }
 
   if (item?.["clip-skip"] != null) {
-    const checkpointLabel = findNodeLabel(workflow, "CheckpointLoaderSimple");
     applyClipSkipOverride(
       workflow,
       item["clip-skip"],
       item.loras,
-      checkpointLabel,
+      findModelLoader(workflow),
       sampler,
     );
   }

@@ -1,0 +1,8 @@
+# e2e-34: Single LoRA on a UNETLoader base -> LoraLoaderModelOnly node, model-only wiring
+- base-workflow: unet-base
+  loras:
+    - name: unet-style-lora.safetensors
+      strength: 0.7
+  prompts:
+    - prompt:
+        - single model-only lora

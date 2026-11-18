@@ -1,0 +1,12 @@
+# e2e-36: LoRAs on a UNETLoader base that already carries its own baked LoraLoaderModelOnly node.
+# The baked node is a consumer of the loader, so it moves after the requested chain:
+# UNETLoader_Base -> Lora_1 -> Lora_2 -> LoraLoader_1 -> Sampler.
+- base-workflow: unet-with-lora
+  loras:
+    - name: requested-lora-a.safetensors
+      strength: 0.6
+    - name: requested-lora-b.safetensors
+      strength: 0.4
+  prompts:
+    - prompt:
+        - requested loras plus the baked one
