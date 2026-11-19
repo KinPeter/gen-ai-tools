@@ -19,6 +19,20 @@ const FIELD_MAP = new Map([
 ]);
 
 /**
+ * The filter keys `buildQuery`'s switch below implements — the contract its
+ * callers build against, kept here so the list and its implementation cannot
+ * drift. A key outside this set makes the switch throw instead of ignoring it.
+ */
+export const SEARCH_FILTER_KEYS = new Set([
+  ...FIELD_MAP.keys(),
+  "lora",
+  "prompt",
+  "sampler",
+  "scheduler",
+  "model",
+]);
+
+/**
  * Build a condition object for a simple regex field.
  * @param {string} field - MongoDB field name.
  * @param {string} value - Value to match.
@@ -34,7 +48,8 @@ function regexCondition(field, value) {
  * Each filter key maps to a flat field name in the MongoDB document.
  * Array-valued filters add multiple conditions to the same $and (AND logic).
  *
- * @param {object} filters - Filter object with keys: workflow, prefix, lora, prompt, outputFolder, sampler, scheduler, model.
+ * @param {object} filters - Filter object; keys must come from
+ *   SEARCH_FILTER_KEYS — the switch below answers any other key with an error.
  * @returns {object} MongoDB query object.
  */
 export function buildQuery(filters) {
@@ -83,6 +98,9 @@ export function buildQuery(filters) {
       case "model": {
         allConditions.push(...values.map((v) => regexCondition(key, v)));
         break;
+      }
+      default: {
+        throw new Error(`Unsupported filter: ${key}`);
       }
     }
   }

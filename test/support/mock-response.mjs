@@ -75,18 +75,28 @@ export function mockRes() {
   };
 }
 
+/** The bytes `mockReq` sends for a body: objects are JSON, strings are verbatim. */
+function requestBody(body) {
+  if (body === undefined) return undefined;
+  return typeof body === "string" ? body : JSON.stringify(body);
+}
+
 /**
- * Minimal IncomingMessage. When `body` is given it is sent as JSON chunks,
- * which is what the POST handlers read through `parseBody`. `host` is the
- * Host header, used by routes that rebuild the request URL with `new URL()`.
+ * Minimal IncomingMessage. An object `body` is sent as JSON, which is what the
+ * POST handlers read through `parseBody`; a string body is sent verbatim, so a
+ * handler can be fed malformed JSON or text a JSON round trip cannot express.
+ * `host` is the Host header, used by routes that rebuild the request URL with
+ * `new URL()`.
  */
 export function mockReq(url, method = "GET", body, host = "localhost:4218") {
-  const raw = body === undefined ? undefined : JSON.stringify(body);
+  const raw = requestBody(body);
 
   return {
     url,
     method,
     headers: { host },
+    /** A real IncomingMessage can be destroyed mid-read; parseBody does. */
+    destroy() {},
     on(event, cb) {
       if (event === "data" && raw !== undefined) cb(Buffer.from(raw));
       if (event === "end") cb();

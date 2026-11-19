@@ -21,6 +21,8 @@ Store and retrieve ComfyUI generation log entries in MongoDB — database `gen-a
 | `cleanup-log.mjs`     | `npm run log-cleanup` — deletes entries with no matching file in `dist/`, after a Y/n prompt.                                                                                                                                                                                                                                      |
 | `backup-log.mjs`      | `npm run log-backup` — dumps the whole collection to `output/backup/logs_<timestamp>[_n].json`, 3,000 entries per file.                                                                                                                                                                                                            |
 
+Filter contract: `search-logs.mjs` exports `SEARCH_FILTER_KEYS` — the keys `buildQuery` handles — and answers an unsupported key with an error instead of dropping it. `tools-hub/api/logging/parse-search-body.mjs` validates against that exported list, so the endpoint cannot silently reject a filter added later at the query layer; `agent-tools/log-search.mjs` keeps its own flag-to-key map because flag spelling (`--output-folder`) differs from key naming, and a key outside the contract now fails there too, through the same error.
+
 Filename helpers: `logging/utils.mjs` exports `stripExtension(filename)` (removes only the last extension, after basename + backslash normalization). `find-log.mjs` has its own `normalizeFilename`, which strips only `.jpg`, `.jpeg`, `.png`.
 
 ## Document shape
@@ -31,6 +33,7 @@ Flat — every field at the top level: `filename`, `base-workflow`, `output-fold
 
 - `comfyui/jobs/log.mjs` — uploads the entries for each saved image after a generation.
 - `tools-hub/api/logging/find-log.mjs` — `GET /api/logging/find-log?filename=<image>`, backed by `findLogEntry` + `normalizeFilename`.
+- `tools-hub/api/logging/search-logs.mjs` — `POST /api/logging/search-logs`, backed by `searchLogs` against the connection the server opened; the optional body carries the same filter keys plus `limit`.
 - `logging/logfinder-ui/index.html` — single-file UI (markup, inline page layout, drag-and-drop) served by `tools-hub/static/logfinder` at `/logfinder`; calls the API above. Its palette, base rules, component styles and JSON token highlighting come from `tools-hub/assets/theme.css` and `tools-hub/assets/syntax.css`, linked via `/assets`.
 - `agent-tools/lookup-log.mjs`, `agent-tools/log-search.mjs` — CLI lookup and search used by the image helper agents.
 

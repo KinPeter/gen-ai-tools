@@ -6,6 +6,7 @@ import {
   searchLogs,
   buildQuery,
   escapeRegex,
+  SEARCH_FILTER_KEYS,
 } from "../../../logging/mongodb/search-logs.mjs";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -290,6 +291,86 @@ describe("buildQuery", () => {
     });
     expect(query).toHaveProperty("$and");
     expect(query.$and).toHaveLength(3);
+  });
+
+  it("throws for a key the switch does not handle instead of dropping it", () => {
+    expect(() => buildQuery({ filename: "rover" })).toThrow(
+      "Unsupported filter: filename",
+    );
+    expect(() => buildQuery({ "not-a-filter": "x" })).toThrow(
+      "Unsupported filter: not-a-filter",
+    );
+  });
+
+  it("refuses a mixed filter object outright, so no search runs on half of it", () => {
+    expect(() =>
+      buildQuery({ workflow: "unholy", sampler: ["eul", "normal"], seed: 7 }),
+    ).toThrow("Unsupported filter: seed");
+  });
+
+  it("skips null-valued keys before the switch, so clearing a filter never errors", () => {
+    expect(buildQuery({ filename: null, lora: undefined })).toEqual({});
+    expect(buildQuery({ workflow: "unholy", tries: null })).toEqual({
+      $and: [{ "base-workflow": { $regex: "unholy", $options: "i" } }],
+    });
+  });
+});
+
+describe("SEARCH_FILTER_KEYS", () => {
+  /** Fields a log document has (logging/AGENTS.md) that are not filters. */
+  const FIELDS_OUTSIDE_THE_CONTRACT = [
+    "filename",
+    "loras",
+    "lora-strengths",
+    "clip-skip",
+    "tries",
+    "size",
+    "steps",
+    "cfg",
+    "seed",
+    "generatedIn",
+    "comfyJobId",
+    "negative-prompt",
+    "not-a-filter",
+  ];
+
+  it("holds exactly the eight documented filter keys, in the order buildQuery reads them", () => {
+    expect([...SEARCH_FILTER_KEYS]).toEqual([
+      "workflow",
+      "prefix",
+      "outputFolder",
+      "lora",
+      "prompt",
+      "sampler",
+      "scheduler",
+      "model",
+    ]);
+    expect(SEARCH_FILTER_KEYS.size).toBe(8);
+  });
+
+  // The pair of tests below is the drift guard: keys in the set must be handled
+  // by buildQuery, and any key buildQuery does not handle must be refused by
+  // name. A key added to the switch but not the set (or the other way round)
+  // makes one of them fail. How many conditions a key expands into is
+  // behaviour, not the contract, so that is pinned by the per-key tests in the
+  // buildQuery block above and deliberately not here.
+  it("every key in the contract builds a condition instead of being dropped", () => {
+    for (const key of SEARCH_FILTER_KEYS) {
+      const query = buildQuery({ [key]: "needle" });
+
+      // A key the switch accepted and ignored would answer {}, which carries
+      // no conditions at all.
+      expect(query.$and ?? []).not.toHaveLength(0);
+    }
+  });
+
+  it("refuses by name every key that is not in the contract", () => {
+    for (const key of FIELDS_OUTSIDE_THE_CONTRACT) {
+      expect(SEARCH_FILTER_KEYS.has(key)).toBe(false);
+      expect(() => buildQuery({ [key]: "needle" })).toThrow(
+        `Unsupported filter: ${key}`,
+      );
+    }
   });
 });
 

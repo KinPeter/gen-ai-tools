@@ -1,4 +1,5 @@
 import apiLoggingFindLog from "./logging/find-log.mjs";
+import apiLoggingSearchLogs from "./logging/search-logs.mjs";
 import apiDistBrowser from "./dist-browser/index.mjs";
 
 /**
@@ -8,6 +9,7 @@ import apiDistBrowser from "./dist-browser/index.mjs";
 
 const routes = [
   apiLoggingFindLog(),
+  apiLoggingSearchLogs(),
   // Add more routes here as modules grow:
   ...apiDistBrowser(),
   // apiSomeModule(),

@@ -70,6 +70,16 @@ types carry `; charset=utf-8`, unknown extensions fall back to
   Delegates to `logging/mongodb/find-log.mjs` (`findLogEntry` +
   `normalizeFilename`). 400 without the param, 404 when no entry, 503 when the
   database is unavailable.
+- `api/logging/search-logs.mjs` — `POST /api/logging/search-logs` with an
+  optional JSON body: `workflow`, `prefix`, `outputFolder`, `lora`, `prompt`,
+  `sampler`, `scheduler`, `model` (string or array of strings) and `limit`
+  (positive integer). Delegates to `searchLogs` in
+  `logging/mongodb/search-logs.mjs`; `api/logging/parse-search-body.mjs` maps
+  the body onto those arguments, accepting exactly the keys in
+  `SEARCH_FILTER_KEYS` there — `buildQuery` answers any other key with an
+  error. 200 with the entry array, 400 for a rejected body or unknown filter,
+  405 other methods (`Allow: POST`), 503 when the database is unavailable,
+  500 when the query fails.
 - `api/dist-browser/` — `fs` (directory listing of `dist/`, folders first, image
   entries only), `images` (raw image bytes), `trash` (POST `{ paths: [...] }` →
   moves into `dist/.trash/`, renaming on collision, returns `{ ok, errors }`).

@@ -17,8 +17,8 @@ describe("API route registry", () => {
     expect(Array.isArray(apiRoutes)).toBe(true);
   });
 
-  it("registers the find-log route and the three dist-browser routes", () => {
-    expect(apiRoutes).toHaveLength(4);
+  it("registers the two logging routes and the three dist-browser routes", () => {
+    expect(apiRoutes).toHaveLength(5);
   });
 
   it("contains the find-log route with its real URL matching", () => {
@@ -36,6 +36,42 @@ describe("API route registry", () => {
       const matchingRoutes = apiRoutes.filter((route) => route.testUrl(url));
       expect(matchingRoutes).toHaveLength(1);
       expect(typeof matchingRoutes[0].serve).toBe("function");
+    }
+  });
+
+  it("matches each search-logs path with exactly one route, the search one", () => {
+    let searchRoute = null;
+
+    for (const url of [
+      "/api/logging/search-logs",
+      "/api/logging/search-logs/",
+      "/api/logging/search-logs/limit=5",
+      "/api/logging/search-logs?limit=5",
+    ]) {
+      const matchingRoutes = apiRoutes.filter((route) => route.testUrl(url));
+
+      expect(matchingRoutes).toHaveLength(1);
+      if (searchRoute === null) searchRoute = matchingRoutes[0];
+      // One single route answers every spelling of the path, so a registry
+      // that registered a different route per spelling fails here. Asking the
+      // matched route whether it matches the URL it was matched on would not:
+      // `matchingRoutes` is exactly the routes that already answered true.
+      expect(matchingRoutes[0]).toBe(searchRoute);
+      // And it is the search endpoint, not the sibling that shares the
+      // /api/logging/ prefix.
+      expect(matchingRoutes[0].testUrl("/api/logging/find-log")).toBe(false);
+      expect(matchingRoutes[0].testUrl("/api/dist-browser/fs")).toBe(false);
+    }
+  });
+
+  it("no route answers a near-miss of the search-logs path", () => {
+    for (const url of [
+      "/api/logging/search-logsx",
+      "/api/logging/search-logs-search",
+      "/api/logging/searchlog",
+      "/api/search-logs",
+    ]) {
+      expect(apiRoutes.filter((route) => route.testUrl(url))).toHaveLength(0);
     }
   });
 

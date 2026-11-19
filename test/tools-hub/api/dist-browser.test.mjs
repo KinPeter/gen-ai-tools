@@ -578,13 +578,29 @@ describe("route isolation (stateless routes)", () => {
   });
 });
 
+// The response helpers from tools-hub/utils/http.mjs are asserted here because
+// this is where the tools-hub response-shape tests already live (a placement
+// this file has had all along, not one this change introduces).
 describe("sendJSON and sendError", () => {
+  /** The content headers `sendJSON` always writes, last, so they always win. */
+  function contentHeaders(data) {
+    const json = JSON.stringify(data);
+
+    return {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(json),
+    };
+  }
+
   it("sendJSON writes correct status and body", () => {
     const res = mockRes();
     sendJSON(res, 200, { key: "value" });
     const s = res._state();
     expect(s.status).toBe(200);
     expect(s.body).toEqual({ key: "value" });
+    // Without the optional extraHeaders argument the headers are exactly what
+    // they were before it existed — nothing stray is added.
+    expect(s.headers).toEqual(contentHeaders({ key: "value" }));
   });
 
   it("sendError writes correct status and error message", () => {
@@ -593,6 +609,48 @@ describe("sendJSON and sendError", () => {
     const s = res._state();
     expect(s.status).toBe(404);
     expect(s.body.error).toBe("Not found");
+    expect(s.headers).toEqual(contentHeaders({ error: "Not found" }));
+  });
+
+  it("sendJSON carries extra headers alongside the content ones", () => {
+    const data = { ok: true };
+    const res = mockRes();
+    sendJSON(res, 201, data, { Allow: "POST", Location: "/api/x" });
+    const s = res._state();
+
+    expect(s.status).toBe(201);
+    expect(s.body).toEqual(data);
+    expect(s.headers).toEqual({
+      Allow: "POST",
+      Location: "/api/x",
+      ...contentHeaders(data),
+    });
+  });
+
+  it("the content headers win over an extraHeaders entry of the same name", () => {
+    const data = [];
+    const res = mockRes();
+    sendJSON(res, 200, data, {
+      "Content-Type": "text/plain",
+      "Content-Length": 0,
+      "X-Note": "kept",
+    });
+    const s = res._state();
+
+    expect(s.headers).toEqual({ "X-Note": "kept", ...contentHeaders(data) });
+  });
+
+  it("sendError passes its extra headers through, which is how a 405 names Allow", () => {
+    const res = mockRes();
+    sendError(res, 405, "Method Not Allowed", { Allow: "POST" });
+    const s = res._state();
+
+    expect(s.status).toBe(405);
+    expect(s.body).toEqual({ error: "Method Not Allowed" });
+    expect(s.headers).toEqual({
+      Allow: "POST",
+      ...contentHeaders({ error: "Method Not Allowed" }),
+    });
   });
 });
 
