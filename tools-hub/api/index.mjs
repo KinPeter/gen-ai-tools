@@ -1,5 +1,6 @@
 import apiLoggingFindLog from "./logging/find-log.mjs";
 import apiLoggingSearchLogs from "./logging/search-logs.mjs";
+import apiComfyValidateInput from "./comfy/validate-input.mjs";
 import apiDistBrowser from "./dist-browser/index.mjs";
 
 /**
@@ -10,6 +11,7 @@ import apiDistBrowser from "./dist-browser/index.mjs";
 const routes = [
   apiLoggingFindLog(),
   apiLoggingSearchLogs(),
+  apiComfyValidateInput(),
   // Add more routes here as modules grow:
   ...apiDistBrowser(),
   // apiSomeModule(),

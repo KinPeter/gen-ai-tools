@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { mockRes } from "../support/mock-response.mjs";
+import { mockReq, mockRes } from "../support/mock-response.mjs";
+import { INPUT_YAML, VALIDATE_INPUT_ROUTE } from "./api/comfy/fixtures.mjs";
 import {
   mockMongoDriver,
   mongoMock,
@@ -120,6 +121,33 @@ describe("route matching", () => {
     );
 
     expect(serveSpy).toHaveBeenCalled();
+    serveSpy.mockRestore();
+  });
+
+  it("dispatches /api/comfy/validate-input through the server, no static route swallowing it", async () => {
+    const server = createServerInstance();
+    const comfyRoute = apiRoutes.find((route) =>
+      route.testUrl(VALIDATE_INPUT_ROUTE),
+    );
+    expect(comfyRoute).toBeDefined();
+
+    // server.mjs walks the static routes before the api routes, so the new
+    // endpoint answers only because none of them claims this URL. A later
+    // static mount under /api/ that does claim it fails here.
+    for (const staticRoute of createStaticRoutes()) {
+      expect(staticRoute.testUrl(VALIDATE_INPUT_ROUTE)).toBe(false);
+    }
+
+    const serveSpy = vi.spyOn(comfyRoute, "serve");
+    const res = mockRes();
+
+    // The handler does not await serve, so the assertions wait for the body.
+    server.handler(mockReq(VALIDATE_INPUT_ROUTE, "POST", INPUT_YAML), res);
+    await res.waitForEnd();
+
+    expect(serveSpy).toHaveBeenCalled();
+    expect(res._state().status).toBe(200);
+    expect(res._state().body).toEqual({ valid: true });
     serveSpy.mockRestore();
   });
 

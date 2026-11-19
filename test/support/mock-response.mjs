@@ -82,6 +82,60 @@ function requestBody(body) {
 }
 
 /**
+ * `text` as UTF-8 bytes cut into chunks of one byte each, the harshest set of
+ * boundaries `mockChunkedReq` can deliver and the one `parseBody` is tested
+ * against: a socket cuts a body wherever it likes, so a multi-byte character
+ * can be split across chunks. The byte count is larger than the character
+ * count whenever the text has a non-ASCII character in it, which is what makes
+ * the cut land inside a character rather than between two.
+ */
+export function oneByteChunks(text) {
+  return Array.from(Buffer.from(text, "utf8")).map((byte) =>
+    Buffer.from([byte]),
+  );
+}
+
+/**
+ * A stand-in IncomingMessage whose `data`, `end` and `error` events the test
+ * drives by hand. `mockReq` delivers one whole body the moment a listener
+ * registers, so it cannot put a chunk boundary in the middle of a multi-byte
+ * character, fire an `error` event, or let a spy on `destroy()` be installed
+ * before the bytes arrive — all three are things `parseBody` is tested against.
+ * `send` emits one `data` event per chunk, `finish` emits `end` (where
+ * `parseBody` decodes) and `fail` emits `error`. `parseBody` registers its
+ * listeners synchronously, so a caller starts the read with
+ * `const promise = parseBody(req)` and drives the events afterwards.
+ */
+export function mockChunkedReq(
+  url,
+  method = "POST",
+  chunks = [],
+  host = "localhost:4218",
+) {
+  const listeners = {};
+
+  return {
+    url,
+    method,
+    headers: { host },
+    destroy() {},
+    on(event, cb) {
+      listeners[event] = cb;
+    },
+    /** One `data` event per chunk, in order. Strings become UTF-8 bytes. */
+    send(toSend = chunks) {
+      for (const chunk of toSend) listeners.data(Buffer.from(chunk));
+    },
+    finish() {
+      listeners.end();
+    },
+    fail(err) {
+      listeners.error(err);
+    },
+  };
+}
+
+/**
  * Minimal IncomingMessage. An object `body` is sent as JSON, which is what the
  * POST handlers read through `parseBody`; a string body is sent verbatim, so a
  * handler can be fed malformed JSON or text a JSON round trip cannot express.

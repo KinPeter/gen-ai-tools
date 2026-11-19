@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import apiRoutes from "../../../tools-hub/api/index.mjs";
+import apiComfyValidateInput from "../../../tools-hub/api/comfy/validate-input.mjs";
+import { INPUT_YAML, VALIDATE_INPUT_ROUTE } from "./comfy/fixtures.mjs";
+import { mockReq, mockRes } from "../../support/mock-response.mjs";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -17,8 +20,8 @@ describe("API route registry", () => {
     expect(Array.isArray(apiRoutes)).toBe(true);
   });
 
-  it("registers the two logging routes and the three dist-browser routes", () => {
-    expect(apiRoutes).toHaveLength(5);
+  it("registers the two logging routes, the comfy validate-input route and the three dist-browser routes", () => {
+    expect(apiRoutes).toHaveLength(6);
   });
 
   it("contains the find-log route with its real URL matching", () => {
@@ -83,6 +86,63 @@ describe("API route registry", () => {
     ]) {
       const matchingRoutes = apiRoutes.filter((route) => route.testUrl(url));
       expect(matchingRoutes).toHaveLength(0);
+    }
+  });
+
+  it("matches each /api/comfy/validate-input spelling with exactly one route, the validate-input one", () => {
+    let comfyRoute = null;
+
+    for (const url of [
+      VALIDATE_INPUT_ROUTE,
+      `${VALIDATE_INPUT_ROUTE}/`,
+      `${VALIDATE_INPUT_ROUTE}/filename.yaml`,
+      `${VALIDATE_INPUT_ROUTE}?name=example`,
+      `${VALIDATE_INPUT_ROUTE}/?name=example`,
+    ]) {
+      const matchingRoutes = apiRoutes.filter((route) => route.testUrl(url));
+
+      expect(matchingRoutes).toHaveLength(1);
+      if (comfyRoute === null) comfyRoute = matchingRoutes[0];
+      // One single route answers every spelling of the path, so a registry that
+      // registered a different route per spelling fails here.
+      expect(matchingRoutes[0]).toBe(comfyRoute);
+      // And it is the comfy endpoint, not a sibling that shares the /api/
+      // prefix, and not something that also answers a look-alike path.
+      expect(matchingRoutes[0].testUrl("/api/logging/find-log")).toBe(false);
+      expect(matchingRoutes[0].testUrl("/api/dist-browser/fs")).toBe(false);
+      expect(matchingRoutes[0].testUrl(`${VALIDATE_INPUT_ROUTE}-x`)).toBe(
+        false,
+      );
+    }
+  });
+
+  it("answers /api/comfy/validate-input with the route the registry picked, not an earlier one", async () => {
+    const [route] = apiRoutes.filter((entry) =>
+      entry.testUrl(VALIDATE_INPUT_ROUTE),
+    );
+
+    // The route found first in registry order is the validate-input module
+    // itself, and the YAML verdict it answers with is something no other route
+    // in the registry produces.
+    expect(route.serve).toBe(apiComfyValidateInput().serve);
+    const res = mockRes();
+    await route.serve(mockReq(VALIDATE_INPUT_ROUTE, "POST", INPUT_YAML), res);
+
+    expect(res._state().status).toBe(200);
+    expect(res._state().body).toEqual({ valid: true });
+  });
+
+  it("no route answers a near-miss of the validate-input path", () => {
+    for (const url of [
+      "/api/comfy/validate-input-x",
+      "/api/comfy/validate-inputs",
+      "/api/comfy/validate-input.x",
+      "/api/comfy/validate",
+      "/api/comfy/",
+      "/api/comfy",
+      "/api/validate-input",
+    ]) {
+      expect(apiRoutes.filter((route) => route.testUrl(url))).toHaveLength(0);
     }
   });
 

@@ -80,6 +80,24 @@ types carry `; charset=utf-8`, unknown extensions fall back to
   error. 200 with the entry array, 400 for a rejected body or unknown filter,
   405 other methods (`Allow: POST`), 503 when the database is unavailable,
   500 when the query fails.
+- `api/comfy/validate-input.mjs` — `POST /api/comfy/validate-input`, body is the
+  raw YAML text of a batch input file (`Content-Type` is ignored so plain
+  `curl --data-binary @file.yaml` works). `api/comfy/validate-yaml.mjs` holds the
+  checks in order — drop a byte-order mark, YAML parse, top level must be a
+  non-null list with at least one block (the shapes `validateJobData` answers
+  nothing about), then
+  `validateJobData` from `comfyui/workflow-builder/validation.mjs` (import-only).
+  200 answers `{ valid: true }` or `{ valid: false, error }` with the first
+  failure only, because `validateJobData` throws on the first bad field; 400 for
+  an empty body, 405 other methods (`Allow: POST`) — an over-`MAX_BODY_SIZE` body
+  answers `400` in the mock harness only, because `utils/request.mjs` destroys
+  the request before any reply lands on a real socket. `valid: true` says the
+  fields are well-formed, not that `comfyui/workflows/<name>.json` exists; the
+  `WARNING:` lines `validateJobData` prints for an omitted `output-folder` or
+  `filename-prefix` go to the server console, never into the JSON. A null
+  document is invalid here while `agent-tools/validate-input.mjs` calls the same
+  file `Status: VALID` — the endpoint is the stricter of the two on purpose. No
+  database.
 - `api/dist-browser/` — `fs` (directory listing of `dist/`, folders first, image
   entries only), `images` (raw image bytes), `trash` (POST `{ paths: [...] }` →
   moves into `dist/.trash/`, renaming on collision, returns `{ ok, errors }`).
