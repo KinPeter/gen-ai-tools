@@ -1,4 +1,5 @@
 import { readActivePod } from "../../runpod/state.mjs";
+import { resolveAssetPaths } from "../utils/assets.mjs";
 
 export const DEFAULT_POLL_INTERVAL_MS = 5000;
 
@@ -29,7 +30,12 @@ export async function loadConfig(env = process.env) {
   if (!Number.isInteger(pollIntervalMs) || pollIntervalMs < 1) {
     throw new Error("COMFY_POLL_INTERVAL_MS must be an integer >= 1");
   }
-  return { server, serverSource, pollIntervalMs };
+  return {
+    server,
+    serverSource,
+    pollIntervalMs,
+    ...resolveAssetPaths(env),
+  };
 }
 
 export async function requireConfig(env = process.env) {

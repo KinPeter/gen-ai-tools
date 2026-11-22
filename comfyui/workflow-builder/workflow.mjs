@@ -1,46 +1,50 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { parse } from "yaml";
 import { validateJobData } from "./validation.mjs";
 import { expandPrompts } from "./prompts.mjs";
 import { applyOverrides } from "./overrides.mjs";
+import {
+  REPO_ASSET_DIRS,
+  findAssetPath,
+  assetFileName,
+} from "../utils/assets.mjs";
 
-const PROJECT_ROOT = path.join(import.meta.dirname, "..", "..");
-const DEFAULT_INPUTS_DIR = path.join(PROJECT_ROOT, "comfyui", "inputs");
-const WORKFLOWS_DIR = path.join(import.meta.dirname, "..", "workflows");
-
-function inputPath(name, inputsDir) {
-  return path.join(inputsDir, `${name}.yaml`);
+// Input YAML + base workflow JSONs are located by file name under the asset
+// folders, so their paths come from a search rather than from a join.
+async function loadInputData(yamlPath) {
+  const text = await readFile(yamlPath, "utf8");
+  try {
+    return parse(text);
+  } catch (err) {
+    throw new Error(`Invalid YAML in ${yamlPath}: ${err.message}`, {
+      cause: err,
+    });
+  }
 }
 
-// Project-relative label so messages stay cwd-independent and cannot drift
-// from the resolved inputs base (default: comfyui/inputs/<name>.yaml).
-function inputLabel(name, inputsDir) {
-  return path
-    .relative(PROJECT_ROOT, inputPath(name, inputsDir))
-    .split(path.sep)
-    .join("/");
+// Reads each base workflow JSON at most once per run, whatever depth it sits at.
+async function loadBaseWorkflow(item, workflowsDir, cache) {
+  const baseName = item?.["base-workflow"];
+  if (!baseName) {
+    throw new Error(
+      `Input item is missing "base-workflow": ${JSON.stringify(item)}`,
+    );
+  }
+  const fileName = assetFileName(baseName, ".json");
+  if (!cache.has(fileName)) {
+    const basePath = await findAssetPath(workflowsDir, fileName);
+    cache.set(fileName, JSON.parse(await readFile(basePath, "utf8")));
+  }
+  return cache.get(fileName);
 }
 
 export async function loadWorkflows(
   name,
-  inputsDir = DEFAULT_INPUTS_DIR,
-  workflowsDir_ = WORKFLOWS_DIR,
+  inputsDir = REPO_ASSET_DIRS.inputsDir,
+  workflowsDir = REPO_ASSET_DIRS.workflowsDir,
 ) {
-  const yamlPath = inputPath(name, inputsDir);
-  const text = await readFile(yamlPath, "utf8");
-  let data;
-  try {
-    data = parse(text);
-  } catch (err) {
-    throw new Error(
-      `Invalid YAML in ${inputLabel(name, inputsDir)}: ${err.message}`,
-      {
-        cause: err,
-      },
-    );
-  }
-
+  const yamlPath = await findAssetPath(inputsDir, assetFileName(name, ".yaml"));
+  const data = await loadInputData(yamlPath);
   validateJobData(data);
 
   const items = expandPrompts(
@@ -50,27 +54,8 @@ export async function loadWorkflows(
   const workflows = [];
 
   for (const item of items) {
-    const baseName = item?.["base-workflow"];
-    if (!baseName) {
-      throw new Error(
-        `Input item is missing "base-workflow": ${JSON.stringify(item)}`,
-      );
-    }
-    const fileName = String(baseName).endsWith(".json")
-      ? String(baseName)
-      : `${baseName}.json`;
-    if (!baseCache.has(fileName)) {
-      const basePath = path.join(workflowsDir_, fileName);
-      const baseText = await readFile(basePath, "utf8");
-      baseCache.set(fileName, JSON.parse(baseText));
-    }
-    const base = baseCache.get(fileName);
+    const base = await loadBaseWorkflow(item, workflowsDir, baseCache);
     const tries = item?.tries == null ? 1 : Number(item.tries);
-    if (!Number.isInteger(tries) || tries < 1) {
-      throw new Error(
-        `Invalid "tries" (must be an integer >= 1): ${JSON.stringify(item)}`,
-      );
-    }
     for (let t = 0; t < tries; t++) {
       const workflow = structuredClone(base);
       applyOverrides(workflow, item, tries > 1);
@@ -83,23 +68,21 @@ export async function loadWorkflows(
 
 export async function requireWorkflows(
   name,
-  inputsDir = DEFAULT_INPUTS_DIR,
-  workflowsDir_ = WORKFLOWS_DIR,
+  inputsDir = REPO_ASSET_DIRS.inputsDir,
+  workflowsDir = REPO_ASSET_DIRS.workflowsDir,
 ) {
   let workflows;
   try {
-    workflows = await loadWorkflows(name, inputsDir, workflowsDir_);
+    workflows = await loadWorkflows(name, inputsDir, workflowsDir);
   } catch (err) {
-    console.error(
-      `Could not load ${inputLabel(name, inputsDir)}: ${err.message}`,
-    );
+    // The messages below carry the searched base and the resolved path, so the
+    // input name is all that is added here.
+    console.error(`Could not load input "${name}": ${err.message}`);
     process.exit(1);
   }
 
   if (workflows.length === 0) {
-    console.warn(
-      `No workflows found in ${inputLabel(name, inputsDir)}, nothing to do.`,
-    );
+    console.warn(`Input "${name}" has no workflows to run, nothing to do.`);
     process.exit(0);
   }
 

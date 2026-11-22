@@ -10,17 +10,17 @@ source ./session.sh
 
 ## Commands
 
-| Command                                 | What it does                                                                    |
-| --------------------------------------- | ------------------------------------------------------------------------------- |
-| `comfy-batch <input-name>`              | Runs one batch from `comfyui/inputs/<input-name>.yaml`.                         |
-| `comfy -i <input1,input2,...>`          | Runs a batch for each input against the ComfyUI that is already running.        |
-| `start-pod [image-key]`                 | Creates a RunPod GPU pod and waits for it to be ready.                          |
-| `stop-pod`                              | Stops and terminates the active pod.                                            |
-| `runpod-comfy [-p <image-key>] -i <..>` | Full run: start a pod, batch each input, always stop the pod — even on failure. |
-| `thub start`                            | Starts tools-hub detached, port from `.env`, logs to `.tmp/tools-hub.log`.      |
-| `thub status`                           | Reports the PID, port and log file, or says the server is not running.          |
-| `thub stop`                             | Sends SIGINT (Ctrl+C equivalent), then SIGTERM if it lingers.                   |
-| `thub restart`                          | Stops the server, then starts it again and rebuilds the browser UI.             |
+| Command                                 | What it does                                                                     |
+| --------------------------------------- | -------------------------------------------------------------------------------- |
+| `comfy-batch <input-name>`              | Runs one batch from `<input-name>.yaml`, found under `COMFY_ASSETS_PATH/inputs`. |
+| `comfy -i <input1,input2,...>`          | Runs a batch for each input against the ComfyUI that is already running.         |
+| `start-pod [image-key]`                 | Creates a RunPod GPU pod and waits for it to be ready.                           |
+| `stop-pod`                              | Stops and terminates the active pod.                                             |
+| `runpod-comfy [-p <image-key>] -i <..>` | Full run: start a pod, batch each input, always stop the pod — even on failure.  |
+| `thub start`                            | Starts tools-hub detached, port from `.env`, logs to `.tmp/tools-hub.log`.       |
+| `thub status`                           | Reports the PID, port and log file, or says the server is not running.           |
+| `thub stop`                             | Sends SIGINT (Ctrl+C equivalent), then SIGTERM if it lingers.                    |
+| `thub restart`                          | Stops the server, then starts it again and rebuilds the browser UI.              |
 
 Each command is a thin wrapper over the matching npm script or Node entry point. A failed input does not stop the remaining ones; the exit code is non-zero if anything failed, and `130` on Ctrl+C.
 

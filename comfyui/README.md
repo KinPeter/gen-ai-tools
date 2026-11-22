@@ -5,17 +5,17 @@ Describe prompts in a YAML file, run one command, and get images in `output/`/`d
 ## Run
 
 ```sh
-npm run comfy-batch -- <input-name>     # reads comfyui/inputs/<input-name>.yaml
+npm run comfy-batch -- <input-name>     # finds <input-name>.yaml under COMFY_ASSETS_PATH/inputs
 npm run convert-all                     # re-convert every PNG in output/ to dist/
 ```
 
-Subfolder inputs work: `comfy-batch archive/<name>`. The input path is resolved from the project root, not the current directory.
+Assets come from `COMFY_ASSETS_PATH` — inputs from its `inputs/` folder, base workflow JSONs from its `workflows/` folder. The variable must be an absolute path; unset or blank, both trees fall back to `comfyui/inputs/` and `comfyui/workflows/` in this repo, so the lookup never depends on the current directory. A name is tried as an exact path first (`comfy-batch archive/new-images`), otherwise it is found by file name at any depth (`comfy-batch new-images` finds `inputs/whatever/new-images.yaml`, `base-workflow: krea2` finds `workflows/new/krea2/krea2.json`); `node_modules/` and `.git/` are skipped, so point the variable at a dedicated assets folder rather than a whole ComfyUI installation. File names must be unique inside each tree — a duplicate is reported as ambiguous. Extensions are optional both ways, so `comfy-batch new-images.yaml` works too.
 
 Pod lifecycle helpers (`start-pod`, `stop-pod`) are in [runpod/](../runpod/README.md); the batch only reads the pod's ComfyUI URL from its state file.
 
 ## What one run does
 
-1. Resolve the ComfyUI server: active pod state (`runpod/.active-pod.json`, written by `start-pod`) first, else `COMFY_SERVER`.
+1. Resolve the ComfyUI server (active pod state `runpod/.active-pod.json`, written by `start-pod`, first, else `COMFY_SERVER`) and the asset base `COMFY_ASSETS_PATH`.
 2. Parse the input YAML into one workflow per prompt × `tries` (brace variants multiply the count).
 3. Queue each workflow (`POST /prompt`), poll `/history/{id}` until success, download the images via `/view`.
 4. Save PNGs under `output/<output-folder>/`, convert to JPG in `dist/` (mirroring subfolders), then delete the PNGs unless `COMFY_KEEP_ORIGINALS=true`.
@@ -27,7 +27,7 @@ Pod lifecycle helpers (`start-pod`, `stop-pod`) are in [runpod/](../runpod/READM
 A list of blocks; each block shares its settings across a `prompts` list, and per-prompt entries override the block.
 
 ```yaml
-- base-workflow: juggernaut # comfyui/workflows/<name>.json, required
+- base-workflow: juggernaut # <COMFY_ASSETS_PATH>/workflows/juggernaut.json, required
   output-folder: rover-city # subfolder of output/
   filename-prefix: rover
   steps: 20
@@ -57,7 +57,7 @@ A list of blocks; each block shares its settings across a `prompts` list, and pe
 - `loras`: at least one `{name, strength}`; per-prompt `loras` replace the block's entirely. Works on both loaders: `LoraLoader` after a `CheckpointLoaderSimple` (`strength` also sets `strength_clip`) or `LoraLoaderModelOnly` after a `UNETLoader` such as `example-unet-base-workflow` (`strength_model` only).
 - `clip-skip`: overrides `stop_at_clip_layer`, creating a `CLIPSetLastLayer` node if the base has none; needs a `CheckpointLoaderSimple`, so it errors on a `UNETLoader` base.
 
-Full details: [input guidelines](./inputs/input-guidelines.md) and [example input](./inputs/input.example.yaml). Base workflow JSONs live in `workflows/`.
+Full details: `input-guidelines.md` in the asset base (`<COMFY_ASSETS_PATH>/docs/`, not in this repo) and [example input](./inputs/input.example.yaml). Base workflow JSONs live under `<COMFY_ASSETS_PATH>/workflows/`.
 
 ## Outputs
 
@@ -69,12 +69,13 @@ Full details: [input guidelines](./inputs/input-guidelines.md) and [example inpu
 
 ## Environment (`.env`)
 
-| Variable                 | Required                    | Description                                    |
-| ------------------------ | --------------------------- | ---------------------------------------------- |
-| `COMFY_SERVER`           | yes, unless a pod is active | ComfyUI base URL, e.g. `http://127.0.0.1:8188` |
-| `COMFY_POLL_INTERVAL_MS` | no (default `5000`)         | History poll interval while waiting            |
-| `COMFY_KEEP_ORIGINALS`   | no (default `false`)        | Keep the PNG originals after conversion        |
-| `MONGODB_URI`            | yes for logging             | MongoDB connection for log uploads             |
+| Variable                 | Required                    | Description                                                                             |
+| ------------------------ | --------------------------- | --------------------------------------------------------------------------------------- |
+| `COMFY_SERVER`           | yes, unless a pod is active | ComfyUI base URL, e.g. `http://127.0.0.1:8188`                                          |
+| `COMFY_ASSETS_PATH`      | no (default `comfyui/`)     | Absolute asset base: its `inputs/` and `workflows/` trees are read by name at any depth |
+| `COMFY_POLL_INTERVAL_MS` | no (default `5000`)         | History poll interval while waiting                                                     |
+| `COMFY_KEEP_ORIGINALS`   | no (default `false`)        | Keep the PNG originals after conversion                                                 |
+| `MONGODB_URI`            | yes for logging             | MongoDB connection for log uploads                                                      |
 
 ## Tests
 

@@ -6,22 +6,22 @@ Batch image generation against a ComfyUI backend (local or a RunPod pod): build 
 
 ## Entry points
 
-- `batch.mjs` — `npm run comfy-batch -- <input-name>` (or `comfy-batch <input-name>` after `source ./session.sh`). Reads `comfyui/inputs/<input-name>.yaml`, runs every generated workflow sequentially, exits 1 if any job fails.
+- `batch.mjs` — `npm run comfy-batch -- <input-name>` (or `comfy-batch <input-name>` after `source ./session.sh`). Finds `<input-name>.yaml` by name anywhere under `<COMFY_ASSETS_PATH>/inputs`, runs every generated workflow sequentially, exits 1 if any job fails.
 - `jobs/convert.mjs` — `npm run convert-all`: re-converts every PNG under `output/` into `dist/`.
 
 ## Architecture
 
 `batch.mjs` is a thin orchestrator: resolve config → build jobs from YAML → per job (queue, wait, save, upload log, convert, delete PNG) → free GPU memory.
 
-| File                | Role                                                                                     |
-| ------------------- | ---------------------------------------------------------------------------------------- |
-| `workflow-builder/` | Input YAML + base workflow JSON → queueable workflow JSON                                |
-| `jobs/comfy.mjs`    | `POST /prompt`, poll `GET /history/{id}`, fetch images via `GET /view`, `POST /api/free` |
-| `jobs/save.mjs`     | Download images, write them to `output/`, delete PNG originals after conversion          |
-| `jobs/convert.mjs`  | PNG → JPG with Sharp (quality 90), mirrors `output/` subfolders into `dist/`             |
-| `jobs/log.mjs`      | Build log entries from the final workflow, upload them to MongoDB                        |
-| `jobs/config.mjs`   | Server URL + poll interval resolution                                                    |
-| `utils/`            | CLI args, filename/timestamp helpers, history→image collection, safe path resolution     |
+| File                | Role                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `workflow-builder/` | Input YAML + base workflow JSON → queueable workflow JSON                                                                       |
+| `jobs/comfy.mjs`    | `POST /prompt`, poll `GET /history/{id}`, fetch images via `GET /view`, `POST /api/free`                                        |
+| `jobs/save.mjs`     | Download images, write them to `output/`, delete PNG originals after conversion                                                 |
+| `jobs/convert.mjs`  | PNG → JPG with Sharp (quality 90), mirrors `output/` subfolders into `dist/`                                                    |
+| `jobs/log.mjs`      | Build log entries from the final workflow, upload them to MongoDB                                                               |
+| `jobs/config.mjs`   | Server URL + poll interval + `COMFY_ASSETS_PATH` asset folders                                                                  |
+| `utils/`            | CLI args, filename/timestamp helpers, history→image collection, safe path resolution, asset lookup by name, asset-base defaults |
 
 ### Workflow builder
 
@@ -30,7 +30,7 @@ Pipeline in `workflow-builder/workflow.mjs`: parse YAML → `validateJobData` �
 **Input YAML rules:**
 
 - Top-level list of blocks; each block needs `base-workflow` and a non-empty `prompts` list. Per-prompt entries inherit the block's settings and override them (no merging — `prompt`, `negative-prompt`, `loras` are replaced wholesale).
-- `base-workflow: <name>` loads `comfyui/workflows/<name>.json` (`.json` optional). Each base file is read once per run and cached.
+- `base-workflow: <name>` loads `<COMFY_ASSETS_PATH>/workflows/<name>.json` (`.json` optional, found by name at any depth). Each base file is read once per run and cached.
 - `prompt` / `negative-prompt` are lists of parts joined with `, ` and appended to the base CLIP text; blank parts are dropped.
 - Brace variants: `{a, b}` inside a prompt string expands to one workflow per option; multiple groups → cartesian product. Nested braces are not parsed, single-option braces stay literal. A fixed `seed` is dropped when expansion yields more than one variant.
 - `seed`: finite number or `"random"`. A fixed seed is only kept when `tries` is unset or `1`; `tries > 1` always randomizes. The base workflow's seed is never reused.
@@ -63,11 +63,11 @@ Pipeline in `workflow-builder/workflow.mjs`: parse YAML → `validateJobData` �
 
 ### Path safety
 
-`utils/paths.mjs` → `resolveDestDir()` sanitizes `output-folder`: values that escape the base directory are ignored with a warning and fall back to the base.
+`utils/paths.mjs` → `resolveDestDir()` sanitizes `output-folder`: values that escape the base directory are ignored with a warning and fall back to the base. The `utils/assets.mjs` file exports `findAssetPath(baseDir, name)`: the exact `<baseDir>/<name>` join is tried first (so `sub/<name>` means that file), then `baseDir` is searched breadth-first by file name — symlinked files are matched, symlinked folders and `node_modules`/`.git` are skipped, so the walk cannot cycle. It errors when nothing matches or the name matches twice, and when the name escapes `baseDir`; inputs and base workflows are located through it, so their depth under the asset folders is free and a file name has to be unique per tree. `utils/assets.mjs` owns the asset base: `resolveAssetPaths(env)` reads `COMFY_ASSETS_PATH` (must be absolute when set) and exports `REPO_ASSET_DIRS` for the `comfyui/` fallback.
 
 ### Config
 
-`jobs/config.mjs`: `runpod/.active-pod.json` → `comfyUrl` (written by `start-pod`) wins over `COMFY_SERVER` from `.env`; neither set → exit 1. `COMFY_POLL_INTERVAL_MS` defaults to 5000 and must be an integer ≥ 1. Logging needs `MONGODB_URI` (`logging/mongodb/client.mjs`).
+`jobs/config.mjs`: `runpod/.active-pod.json` → `comfyUrl` (written by `start-pod`) wins over `COMFY_SERVER` from `.env`; neither set → exit 1. `COMFY_POLL_INTERVAL_MS` defaults to 5000 and must be an integer ≥ 1. `COMFY_ASSETS_PATH` names the asset base the batch reads from — absolute when set, `comfyui/` in this repo when unset or blank; `loadConfig()` reports `assetsPath`, `inputsDir` (`<assets>/inputs`) and `workflowsDir` (`<assets>/workflows`), and `utils/assets.mjs` is the single owner of that base. Logging needs `MONGODB_URI` (`logging/mongodb/client.mjs`).
 
 ### Testing
 

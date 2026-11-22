@@ -63,6 +63,7 @@ export async function runJob(
 export async function main() {
   const config = await requireConfig();
   console.log(`ComfyUI server: ${config.server} (from ${config.serverSource})`);
+  console.log(`Assets: ${config.assetsPath}`);
   const name = requireInputName();
   const dbConnection = await getImageLogConnection();
   const runTs = timestamp();
@@ -71,7 +72,12 @@ export async function main() {
   // Local json logging is disabled
   // await writeLog(logPath, logEntries);
 
-  const jobs = await requireWorkflows(name);
+  // Inputs and base workflows come from COMFY_ASSETS_PATH, not from comfyui/.
+  const jobs = await requireWorkflows(
+    name,
+    config.inputsDir,
+    config.workflowsDir,
+  );
   let allOk = true;
   for (let i = 0; i < jobs.length; i++) {
     console.log(`[${i + 1}/${jobs.length}] Running workflow...`);

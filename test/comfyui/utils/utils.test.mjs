@@ -1,7 +1,7 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import os from "node:os";
+import { chmod, symlink } from "node:fs/promises";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { withTempTree } from "../../support/tmp-tree.mjs";
 
 const uploadLogMock = vi.hoisted(() => ({ uploadLog: vi.fn() }));
 
@@ -18,7 +18,12 @@ import {
   resolvePrefix,
   timestamp,
 } from "../../../comfyui/utils/naming.mjs";
-import { resolveDestDir } from "../../../comfyui/utils/paths.mjs";
+import {
+  collectMatches,
+  isFileHere,
+  isInsideDir,
+  resolveDestDir,
+} from "../../../comfyui/utils/paths.mjs";
 import { collectOutputImages } from "../../../comfyui/utils/outputs.mjs";
 import {
   formatDuration,
@@ -28,11 +33,6 @@ import {
   addToLog,
 } from "../../../comfyui/jobs/log.mjs";
 import { collectOutputImages as collectImages } from "../../../comfyui/utils/outputs.mjs";
-
-const dirs = [];
-afterEach(async () =>
-  Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true }))),
-);
 
 describe("utilities", () => {
   it("parses and formats stable names", () => {
@@ -56,7 +56,7 @@ describe("utilities", () => {
     });
     expect(() => requireInputName(["node", "cmd"])).toThrow("exit");
     expect(error).toHaveBeenCalledWith(
-      "  Reads comfyui/inputs/<input-name>.yaml",
+      "  Finds <input-name>.yaml by name under COMFY_ASSETS_PATH/inputs",
     );
     expect(exit).toHaveBeenCalledWith(1);
   });
@@ -68,10 +68,13 @@ describe("utilities", () => {
   });
 
   it("prevents output-folder traversal", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "img-tools-"));
-    dirs.push(root);
-    expect(resolveDestDir(root, "nested")).toBe(path.join(root, "nested"));
-    expect(resolveDestDir(root, "../../escape")).toBe(root);
+    await withTempTree({ "sub/deep/file.yaml": "x" }, (root) => {
+      expect(resolveDestDir(root, "nested")).toBe(path.join(root, "nested"));
+      expect(resolveDestDir(root, "../../escape")).toBe(root);
+      // A value that collapses back onto the base still counts as inside it,
+      // which is the case containment now answers through isInsideDir("").
+      expect(resolveDestDir(root, "sub/..")).toBe(root);
+    });
   });
 
   it("handles output images and durations", () => {
@@ -97,39 +100,175 @@ describe("utilities", () => {
   });
 
   it("builds and writes log entries", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "img-log-"));
-    dirs.push(root);
-    const entry = buildLogEntry({
-      input: { prompt: ["x"] },
-      finalWorkflowData: {
-        model: "model.safetensors",
-        seed: 3,
-        sampler: "euler",
-        scheduler: "normal",
-        steps: 20,
-        cfg: 8,
-        positivePrompt: "base, x",
-        negativePrompt: "bad",
+    await withTempTree(
+      { "nested/.keep": "" },
+      async (root) => {
+        const entry = buildLogEntry({
+          input: { prompt: ["x"] },
+          finalWorkflowData: {
+            model: "model.safetensors",
+            seed: 3,
+            sampler: "euler",
+            scheduler: "normal",
+            steps: 20,
+            cfg: 8,
+            positivePrompt: "base, x",
+            negativePrompt: "bad",
+          },
+          filename: "x.png",
+          elapsedMs: null,
+          comfyJobId: "id",
+        });
+        expect(entry.generatedIn).toBeNull();
+        const log = path.join(root, "nested", "log.json");
+        await expect(writeLog(log, [entry])).resolves.toBeUndefined();
+        const workflow = {
+          KSampler: { class_type: "KSampler", inputs: { seed: 3 } },
+          PositiveCLIP_Base: { inputs: { text: "base" } },
+          NegativeCLIP_Base: { inputs: { text: "bad" } },
+        };
+        await addToLog({
+          logPath: log,
+          logEntries: [],
+          job: { input: {}, workflow },
+          saved: [{ filename: "x.png", destDir: root }],
+          promptId: "id",
+          historyEntry: {},
+        });
       },
-      filename: "x.png",
-      elapsedMs: null,
-      comfyJobId: "id",
+      "gen-ai-log-",
+    );
+  });
+});
+
+// The containment helper resolveDestDir was refactored onto, plus the two
+// walkers the asset lookup runs on a folder of unknown depth.
+// Deviation from the test mirror: comfyui/utils/paths.mjs has no twin test
+// file; its exports are covered in this long-standing utils bucket.
+describe("containment and tree walking", () => {
+  it("accepts the base itself and everything below it", async () => {
+    await withTempTree({ "sub/deep/file.yaml": "x" }, async (root) => {
+      expect(isInsideDir(root, root)).toBe(true);
+      expect(
+        isInsideDir(root, path.join(root, "sub", "deep", "file.yaml")),
+      ).toBe(true);
+      // The same folder written another way is still the base.
+      expect(isInsideDir(root, path.join(root, "sub", ".."))).toBe(true);
+      expect(isInsideDir(root, path.dirname(root))).toBe(false);
+      expect(isInsideDir(root, path.join(root, ".."))).toBe(false);
+      // A sibling that shares the base's name prefix is not inside it.
+      expect(isInsideDir(root, `${root}-sibling`)).toBe(false);
     });
-    expect(entry.generatedIn).toBeNull();
-    const log = path.join(root, "nested", "log.json");
-    await expect(writeLog(log, [entry])).resolves.toBeUndefined();
-    const workflow = {
-      KSampler: { class_type: "KSampler", inputs: { seed: 3 } },
-      PositiveCLIP_Base: { inputs: { text: "base" } },
-      NegativeCLIP_Base: { inputs: { text: "bad" } },
-    };
-    await addToLog({
-      logPath: log,
-      logEntries: [],
-      job: { input: {}, workflow },
-      saved: [{ filename: "x.png", destDir: root }],
-      promptId: "id",
-      historyEntry: {},
+  });
+
+  it("counts regular files, linked ones included, and nothing else", async () => {
+    await withTempTree(
+      { "real.txt": "target", "folder/keep.txt": "nested" },
+      async (root) => {
+        await symlink(path.join(root, "real.txt"), path.join(root, "link.txt"));
+        await symlink(path.join(root, "folder"), path.join(root, "dirlink"));
+        await symlink(
+          path.join(root, "missing.txt"),
+          path.join(root, "broken.txt"),
+        );
+        await symlink(
+          path.join(root, "cycle.txt"),
+          path.join(root, "cycle.txt"),
+        );
+        expect(await isFileHere(path.join(root, "real.txt"))).toBe(true);
+        // stat() follows the link, so a linked file is a real file here.
+        expect(await isFileHere(path.join(root, "link.txt"))).toBe(true);
+        expect(await isFileHere(path.join(root, "folder"))).toBe(false);
+        expect(await isFileHere(path.join(root, "dirlink"))).toBe(false);
+        expect(await isFileHere(path.join(root, "missing.txt"))).toBe(false);
+        // A dangling link and a link that only points at itself are absent,
+        // not a failure worth stopping the walk for.
+        expect(await isFileHere(path.join(root, "broken.txt"))).toBe(false);
+        expect(await isFileHere(path.join(root, "cycle.txt"))).toBe(false);
+      },
+    );
+  });
+
+  it("passes a permission failure through instead of calling it absent", async () => {
+    await withTempTree({ "locked/inside.txt": "x" }, async (root) => {
+      const locked = path.join(root, "locked");
+      await chmod(locked, 0o000);
+      try {
+        await expect(
+          isFileHere(path.join(locked, "inside.txt")),
+        ).rejects.toThrow(/EACCES/);
+        await expect(collectMatches(locked, "inside.txt")).rejects.toThrow(
+          /EACCES/,
+        );
+      } finally {
+        await chmod(locked, 0o755);
+      }
+    });
+  });
+
+  it("searches shallow levels first and reports every match", async () => {
+    await withTempTree(
+      {
+        "goal.yaml": "top",
+        "a/goal.yaml": "branch",
+        "c/goal.yaml": "other branch",
+        "a/b/goal.yaml": "deep",
+        "c/b/goal.yaml": "other deep",
+      },
+      async (root) => {
+        const matches = await collectMatches(root, "goal.yaml");
+        expect(new Set(matches)).toEqual(
+          new Set([
+            path.join(root, "goal.yaml"),
+            path.join(root, "a", "goal.yaml"),
+            path.join(root, "c", "goal.yaml"),
+            path.join(root, "a", "b", "goal.yaml"),
+            path.join(root, "c", "b", "goal.yaml"),
+          ]),
+        );
+        // Folders are queued level by level, so the depths come out low to
+        // high: the shallower copy heads the list and the ambiguous report
+        // offers it first. Only the level order is pinned, not the order two
+        // siblings come back in, which readdir does not promise.
+        const depths = matches.map(
+          (match) => path.relative(root, match).split(path.sep).length - 1,
+        );
+        expect(depths).toEqual([0, 1, 1, 2, 2]);
+        expect(matches[0]).toBe(path.join(root, "goal.yaml"));
+      },
+    );
+  });
+
+  it("skips folders a shared tree carries and never follows a linked folder", async () => {
+    await withTempTree(
+      {
+        "base/live/goal.yaml": "live",
+        "base/node_modules/pkg/goal.yaml": "dependency",
+        "base/.git/objects/goal.yaml": "version control",
+        // outside/ is a sibling of the base, reachable only through the link.
+        "outside/goal.yaml": "outside the base",
+      },
+      async (root) => {
+        const base = path.join(root, "base");
+        await symlink(path.join(root, "outside"), path.join(base, "mirror"));
+        expect(await collectMatches(base, "goal.yaml")).toEqual([
+          path.join(base, "live", "goal.yaml"),
+        ]);
+      },
+    );
+  });
+
+  it("answers with nothing when there is no folder to walk", async () => {
+    await withTempTree({ "goal.yaml": "top" }, async (root) => {
+      // A base that does not exist, and a base that is a file, both simply
+      // hold no matches rather than failing the lookup.
+      await expect(
+        collectMatches(path.join(root, "absent"), "goal.yaml"),
+      ).resolves.toEqual([]);
+      await expect(
+        collectMatches(path.join(root, "goal.yaml"), "goal.yaml"),
+      ).resolves.toEqual([]);
+      await expect(collectMatches(root, "ghost.yaml")).resolves.toEqual([]);
     });
   });
 });
