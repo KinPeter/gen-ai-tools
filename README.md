@@ -22,11 +22,6 @@ The agent definitions, commands and skills live in `.opencode/`.
 
 - **Delivery** — `/deliver <requirement or file>` runs a requirement through implementation, independent review and review fixes, ending with QA evidence and a suggested commit message.
 - **Tests** — `/tests <scope>` writes or updates tests, reviews them, and fixes test-side findings.
-- **Image input helpers** — `/image-input` generates ComfyUI batch input YAML files, with subagents that validate the YAML and look up generation logs.
-
-### Agent tools
-
-The CLI scripts the agents call are in [agent-tools](./agent-tools/README.md): validate a batch input file, look up one image's log entry, search the log collection.
 
 ## Development
 

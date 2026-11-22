@@ -26,20 +26,6 @@ production code; suspected implementation bugs are escalated to the user.
 
 Node 24, ESM (`"type": "module"`, top-level await). Vitest (`vitest.config.mjs`, tests under `test/`); no typecheck or CI.
 
-## Image helper agents (OpenCode)
-
-OpenCode provides image helper agents for generating and validating ComfyUI batch
-input YAML files for SDXL generation:
-
-- **image-input-helper** — Primary agent, invoked via `/image-input`. Generates
-  input YAML, coordinates validation and log lookups.
-- **image-input-validator** (subagent) — Validates YAML against the batch job
-  schema (`agent-tools/validate-input.mjs`).
-- **image-log-finder** (subagent) — Looks up log entries for specific image files
-  (`agent-tools/lookup-log.mjs`).
-- **image-log-searcher** (subagent) — Searches historical logs with a two-phase
-  approach (`agent-tools/log-search.mjs`).
-
 ## Setup
 
 ```sh

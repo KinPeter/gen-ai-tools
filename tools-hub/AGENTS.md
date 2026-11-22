@@ -95,9 +95,7 @@ types carry `; charset=utf-8`, unknown extensions fall back to
   fields are well-formed, not that `comfyui/workflows/<name>.json` exists; the
   `WARNING:` lines `validateJobData` prints for an omitted `output-folder` or
   `filename-prefix` go to the server console, never into the JSON. A null
-  document is invalid here while `agent-tools/validate-input.mjs` calls the same
-  file `Status: VALID` — the endpoint is the stricter of the two on purpose. No
-  database.
+  document is invalid here — the endpoint is strict on purpose. No database.
 - `api/dist-browser/` — `fs` (directory listing of `dist/`, folders first, image
   entries only), `images` (raw image bytes), `trash` (POST `{ paths: [...] }` →
   moves into `dist/.trash/`, renaming on collision, returns `{ ok, errors }`).
