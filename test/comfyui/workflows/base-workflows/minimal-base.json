@@ -5,6 +5,20 @@
       "ckpt_name": "<base-model-checkpoint-name>.safetensors"
     }
   },
+  "PositiveCLIP_Base": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["CheckpointLoader_Base", 1],
+      "text": ""
+    }
+  },
+  "NegativeCLIP_Base": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["CheckpointLoader_Base", 1],
+      "text": ""
+    }
+  },
   "Sampler": {
     "class_type": "KSampler",
     "inputs": {
@@ -14,8 +28,8 @@
       "cfg": 7,
       "sampler_name": "euler",
       "scheduler": "normal",
-      "positive": ["CheckpointLoader_Base", 1],
-      "negative": ["CheckpointLoader_Base", 1],
+      "positive": ["PositiveCLIP_Base", 1],
+      "negative": ["NegativeCLIP_Base", 1],
       "latent_image": ["EmptyLatentImage", 0],
       "denoise": 1
     }

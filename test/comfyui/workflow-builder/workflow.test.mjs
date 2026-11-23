@@ -47,6 +47,20 @@ const BASE_JSON = JSON.stringify({
     class_type: "CheckpointLoaderSimple",
     inputs: { ckpt_name: "base-model.safetensors" },
   },
+  PositiveCLIP_Base: {
+    class_type: "CLIPTextEncode",
+    inputs: {
+      clip: ["CLIPLoader_Base", 0],
+      text: "",
+    },
+  },
+  NegativeCLIP_Base: {
+    class_type: "CLIPTextEncode",
+    inputs: {
+      clip: ["CLIPLoader_Base", 0],
+      text: "",
+    },
+  },
   Sampler: {
     class_type: "KSampler",
     inputs: {
@@ -56,8 +70,8 @@ const BASE_JSON = JSON.stringify({
       cfg: 7,
       sampler_name: "euler",
       scheduler: "normal",
-      positive: ["CheckpointLoader_Base", 1],
-      negative: ["CheckpointLoader_Base", 1],
+      positive: ["PositiveCLIP_Base", 1],
+      negative: ["NegativeCLIP_Base", 1],
       latent_image: ["EmptyLatentImage", 0],
       denoise: 1,
     },

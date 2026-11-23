@@ -607,7 +607,7 @@ describe("e2e workflow building: YAML input → workflow JSON", () => {
     );
   });
 
-  test("26 minimal-base: workflow without CLIP nodes and SaveImage", async () => {
+  test("26 minimal-base: workflow without SaveImage", async () => {
     const workflows = await loadWorkflows(
       "26-minimal-base",
       INPUTS_DIR,
@@ -620,8 +620,8 @@ describe("e2e workflow building: YAML input → workflow JSON", () => {
     expect(workflows).toEqual(golden);
     const wf = workflows[0].workflow;
     expect(wf.ClipSkip_Base).toBeUndefined();
-    expect(wf.PositiveCLIP_Base).toBeUndefined();
-    expect(wf.NegativeCLIP_Base).toBeUndefined();
+    expect(wf.PositiveCLIP_Base).toBeDefined();
+    expect(wf.NegativeCLIP_Base).toBeDefined();
     expect(wf.SaveImage).toBeUndefined();
     expect(wf.Lora_1).toBeUndefined();
     expect(wf.Sampler.inputs.model).toEqual(["CheckpointLoader_Base", 0]);

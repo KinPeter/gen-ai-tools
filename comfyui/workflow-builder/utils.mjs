@@ -6,15 +6,21 @@ export function findNode(workflow, classType) {
 }
 
 export function findPositiveClip(workflow, sampler) {
+  if (workflow.PositiveCLIP_Base) return workflow.PositiveCLIP_Base;
   const ref = sampler?.inputs?.positive?.[0];
-  if (typeof ref === "string" && workflow[ref]) return workflow[ref];
-  return workflow.PositiveCLIP_Base ?? findNode(workflow, "CLIPTextEncode");
+  if (
+    typeof ref === "string" &&
+    workflow[ref] &&
+    workflow[ref].class_type === "CLIPTextEncode"
+  )
+    return workflow[ref];
+  return findNode(workflow, "CLIPTextEncode");
 }
 
 export function findNegativeClip(workflow, sampler) {
+  if (workflow.NegativeCLIP_Base) return workflow.NegativeCLIP_Base;
   const ref = sampler?.inputs?.negative?.[0];
   if (typeof ref === "string" && workflow[ref]) return workflow[ref];
-  if (workflow.NegativeCLIP_Base) return workflow.NegativeCLIP_Base;
   const positive = findPositiveClip(workflow, sampler);
   for (const node of Object.values(workflow)) {
     if (node?.class_type === "CLIPTextEncode" && node !== positive) return node;

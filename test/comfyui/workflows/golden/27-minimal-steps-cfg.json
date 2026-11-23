@@ -4,8 +4,21 @@
       "CheckpointLoader_Base": {
         "class_type": "CheckpointLoaderSimple",
         "inputs": {
-          "ckpt_name": "<base-model-checkpoint-name>.safetensors",
+          "ckpt_name": "<base-model-checkpoint-name>.safetensors"
+        }
+      },
+      "PositiveCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CheckpointLoader_Base", 1],
           "text": "minimal with overrides"
+        }
+      },
+      "NegativeCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CheckpointLoader_Base", 1],
+          "text": ""
         }
       },
       "Sampler": {
@@ -17,8 +30,8 @@
           "cfg": 9,
           "sampler_name": "euler",
           "scheduler": "normal",
-          "positive": ["CheckpointLoader_Base", 1],
-          "negative": ["CheckpointLoader_Base", 1],
+          "positive": ["PositiveCLIP_Base", 1],
+          "negative": ["NegativeCLIP_Base", 1],
           "latent_image": ["EmptyLatentImage", 0],
           "denoise": 1
         }
