@@ -54,7 +54,7 @@ function htmlPage({ port, lanAddress }) {
       <dt>Lan</dt><dd>${lanSource ? `<a href="${lanSource}">${lanCell}</a>` : lanCell}</dd>
       <dt>Host</dt><dd>0.0.0.0 — reachable from your LAN</dd>
     </dl>
-    <p class="mounts">Mounted: <code>/assets/</code> (favicons, manifest) · API routes land here later</p>
+    <p class="mounts">Mounted: <code>/assets/</code> (favicons, manifest)</p>
   </main>
 </body>
 </html>`;

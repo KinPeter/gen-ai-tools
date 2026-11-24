@@ -43,6 +43,7 @@ npm install
 | `runpod/`        | RunPod GPU pod lifecycle — create, wait, stop, terminate.                           |
 | `logging/`       | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.  |
 | `tools-hub/`     | Local Node HTTP server for static UIs and API routes                                |
+| `ai-gateway/`    | LAN-facing HTTP server (status page, static assets, image-upload API mounts).       |
 | `dist-browser/`  | Vite + React browser UI for serving `dist/` outputs.                                |
 | `test/`          | Vitest unit and E2E golden-file tests (mirrors source structure).                   |
 | `shell-scripts/` | Shell helpers (bash 3.2+ and zsh) registered by `session.sh` (repo root).           |

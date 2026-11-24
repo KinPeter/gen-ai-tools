@@ -18,6 +18,21 @@ Vite build, no auth yet.
 | `/`         | Temporary status page (port, LAN URL, mounts) |
 | `/assets/*` | `ai-gateway/assets/` (favicons, manifest)     |
 
+### API routes
+
+Two image-upload mounts, built from the same shared code (`api/shared/`):
+
+| Route                     | Env var                        | Folder                            |
+| ------------------------- | ------------------------------ | --------------------------------- |
+| `/api/my-image-uploads/*` | `AIGW_MY_IMAGE_UPLOADS_FOLDER` | the caller's own comfyui `input/` |
+| `/api/cy-image-uploads/*` | `AIGW_CY_IMAGE_UPLOADS_FOLDER` | Cheyun's comfyui `input/`         |
+
+Each mount serves the same three endpoints:
+
+- `GET <prefix>/list` — lists plain filenames in the configured folder (sorted alphabetically)
+- `POST <prefix>/upload` — saves one uploaded file there (`multipart/form-data`, max 50 MB)
+- `POST <prefix>/delete` — deletes files named in the JSON body (`{ "files": [...] }`)
+
 Anything else answers 404.
 
 TODOs:

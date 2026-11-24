@@ -1,6 +1,8 @@
+import myImageUploads from "./my-image-uploads/index.mjs";
+import cyImageUploads from "./cy-image-uploads/index.mjs";
+
 /**
  * API route registry for ai-gateway.
- * No API routes yet — the shape is stable so new routes can be added here
- * (mounted under /api/<module>).
+ * Each route is { testUrl, serve } and mounted under /api/<module>.
  */
-export default [];
+export default [...myImageUploads, ...cyImageUploads];

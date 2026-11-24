@@ -56,3 +56,31 @@ export function getContentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   return MIME_TYPES[ext] || DEFAULT_MIME_TYPE;
 }
+
+/**
+ * Validate a plain basename: after trimming it must be non-empty, must not
+ * contain `/` or `\`, and must not be exactly `.` or `..`. This is the rule the
+ * delete endpoint uses — an invalid name is skipped, never resolved.
+ */
+export function isPlainBasename(name) {
+  if (typeof name !== "string") return false;
+  if (!name.trim()) return false;
+  if (name.includes("/") || name.includes("\\")) return false;
+  if (name.trim() === "." || name.trim() === "..") return false;
+  return true;
+}
+
+/**
+ * Normalize an uploaded filename to the plain basename kept on disk: any path
+ * components (both separators) are stripped, then the name must be non-empty
+ * after trimming and must not be `.` or `..`. Returns `null` when nothing usable
+ * remains — callers treat it as an invalid name.
+ */
+export function stripBasename(name) {
+  if (typeof name !== "string") return null;
+  const base = name.trim().replace(/\\/g, "/").split("/").pop() || "";
+  const trimmed = base.trim();
+  if (!trimmed) return null;
+  if (trimmed === "." || trimmed === "..") return null;
+  return trimmed;
+}
