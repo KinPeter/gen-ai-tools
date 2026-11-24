@@ -1,0 +1,8 @@
+# e2e-41: img2img base with one "inputs" image — only the base chain's LoadImage
+# filename moves, no node is added and the sampler keeps reading the base pair.
+- base-workflow: img2img-base
+  inputs:
+    - only-reference.jpg
+  prompts:
+    - prompt:
+        - turn the person from the reference photo into a watercolor portrait

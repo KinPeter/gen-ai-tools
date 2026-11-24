@@ -1,0 +1,204 @@
+[
+  {
+    "workflow": {
+      "UNETLoader_Base": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "<base_flux_model>.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "CLIPLoader_Base": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "<text_encoder>.safetensors",
+          "type": "flux2",
+          "device": "default"
+        }
+      },
+      "VAELoader_Base": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "<flux_vae>.safetensors"
+        }
+      },
+      "EmptyLatentImage": {
+        "class_type": "EmptyLatentImage",
+        "inputs": {
+          "batch_size": 1,
+          "height": 1200,
+          "width": 768
+        }
+      },
+      "LoadImage_1": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "first-reference.jpg"
+        }
+      },
+      "ImageScaleToTotalPixels_1": {
+        "class_type": "ImageScaleToTotalPixels",
+        "inputs": {
+          "image": ["LoadImage_1", 0],
+          "upscale_method": "nearest-exact",
+          "megapixels": 1.5,
+          "resolution_steps": 8
+        }
+      },
+      "VAEEncode_Reference_1": {
+        "class_type": "VAEEncode",
+        "inputs": {
+          "pixels": ["ImageScaleToTotalPixels_1", 0],
+          "vae": ["VAELoader_Base", 0]
+        }
+      },
+      "PositiveCLIP_Base": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": ["CLIPLoader_Base", 0],
+          "text": "the two people from figure one and figure two posing together, the scenery from figure three behind them, photorealistic, golden hour"
+        }
+      },
+      "ConditioningZeroOut_Negative": {
+        "class_type": "ConditioningZeroOut",
+        "inputs": {
+          "conditioning": ["PositiveCLIP_Base", 0]
+        }
+      },
+      "ReferenceLatent_Positive_1": {
+        "class_type": "ReferenceLatent",
+        "inputs": {
+          "conditioning": ["PositiveCLIP_Base", 0],
+          "latent": ["VAEEncode_Reference_1", 0]
+        }
+      },
+      "ReferenceLatent_Negative_1": {
+        "class_type": "ReferenceLatent",
+        "inputs": {
+          "conditioning": ["ConditioningZeroOut_Negative", 0],
+          "latent": ["VAEEncode_Reference_1", 0]
+        }
+      },
+      "LoadImage_2": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "second-reference.jpg"
+        }
+      },
+      "ImageScaleToTotalPixels_2": {
+        "class_type": "ImageScaleToTotalPixels",
+        "inputs": {
+          "image": ["LoadImage_2", 0],
+          "upscale_method": "nearest-exact",
+          "megapixels": 1.5,
+          "resolution_steps": 8
+        }
+      },
+      "LoadImage_3": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "third-reference.jpg"
+        }
+      },
+      "ImageScaleToTotalPixels_3": {
+        "class_type": "ImageScaleToTotalPixels",
+        "inputs": {
+          "image": ["LoadImage_3", 0],
+          "upscale_method": "nearest-exact",
+          "megapixels": 1.5,
+          "resolution_steps": 8
+        }
+      },
+      "VAEEncode_Reference_2": {
+        "class_type": "VAEEncode",
+        "inputs": {
+          "pixels": ["ImageScaleToTotalPixels_2", 0],
+          "vae": ["VAELoader_Base", 0]
+        }
+      },
+      "VAEEncode_Reference_3": {
+        "class_type": "VAEEncode",
+        "inputs": {
+          "pixels": ["ImageScaleToTotalPixels_3", 0],
+          "vae": ["VAELoader_Base", 0]
+        }
+      },
+      "ReferenceLatent_Positive_2": {
+        "class_type": "ReferenceLatent",
+        "inputs": {
+          "conditioning": ["ReferenceLatent_Positive_1", 0],
+          "latent": ["VAEEncode_Reference_2", 0]
+        }
+      },
+      "ReferenceLatent_Positive_3": {
+        "class_type": "ReferenceLatent",
+        "inputs": {
+          "conditioning": ["ReferenceLatent_Positive_2", 0],
+          "latent": ["VAEEncode_Reference_3", 0]
+        }
+      },
+      "ReferenceLatent_Negative_2": {
+        "class_type": "ReferenceLatent",
+        "inputs": {
+          "conditioning": ["ReferenceLatent_Negative_1", 0],
+          "latent": ["VAEEncode_Reference_2", 0]
+        }
+      },
+      "ReferenceLatent_Negative_3": {
+        "class_type": "ReferenceLatent",
+        "inputs": {
+          "conditioning": ["ReferenceLatent_Negative_2", 0],
+          "latent": ["VAEEncode_Reference_3", 0]
+        }
+      },
+      "FluxKVCache_Model": {
+        "class_type": "FluxKVCache",
+        "inputs": {
+          "model": ["UNETLoader_Base", 0]
+        }
+      },
+      "Sampler": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": ["FluxKVCache_Model", 0],
+          "seed": 1000000001,
+          "steps": 4,
+          "cfg": 1,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "positive": ["ReferenceLatent_Positive_3", 0],
+          "negative": ["ReferenceLatent_Negative_3", 0],
+          "latent_image": ["EmptyLatentImage", 0],
+          "denoise": 1
+        }
+      },
+      "VAEDecode_1": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": ["Sampler", 0],
+          "vae": ["VAELoader_Base", 0]
+        }
+      },
+      "SaveImage": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": ["VAEDecode_1", 0],
+          "filename_prefix": "flux2-img2img"
+        }
+      }
+    },
+    "input": {
+      "base-workflow": "img2img-base",
+      "inputs": [
+        "first-reference.jpg",
+        "second-reference.jpg",
+        "third-reference.jpg"
+      ],
+      "prompt": [
+        "the two people from figure one and figure two posing together",
+        "the scenery from figure three behind them",
+        "photorealistic, golden hour"
+      ]
+    }
+  }
+]

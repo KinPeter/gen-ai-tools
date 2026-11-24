@@ -8,6 +8,7 @@ import {
   validateLoras,
   validateSeed,
   validateTries,
+  validateInputImages,
 } from "../../../comfyui/workflow-builder/validation.mjs";
 
 describe("validation.mjs", () => {
@@ -618,6 +619,162 @@ describe("validation.mjs", () => {
       expect(() => validateLoras({ loras: null }, false)).toThrow(
         '"loras" must be a list',
       );
+    });
+  });
+
+  describe("validateInputImages", () => {
+    it("allows a block without an inputs key", () => {
+      expect(validateInputImages({})).toBeUndefined();
+      expect(validateInputImages({ inputs: null })).toBeUndefined();
+    });
+
+    it("allows a list of image file names", () => {
+      expect(validateInputImages({ inputs: ["a.jpg"] })).toBeUndefined();
+      expect(
+        validateInputImages({
+          inputs: ["a.jpg", "my photo.PNG", "one-more.webp", "a.b.jpeg"],
+        }),
+      ).toBeUndefined();
+    });
+
+    it("throws when inputs is not a list", () => {
+      for (const inputs of ["a.jpg", 2, { "a.jpg": 1 }]) {
+        expect(() => validateInputImages({ inputs })).toThrow(
+          '"inputs" must be a list of image file names',
+        );
+      }
+    });
+
+    it("throws when inputs is an empty list", () => {
+      expect(() => validateInputImages({ inputs: [] })).toThrow(
+        '"inputs" must contain at least one image file name',
+      );
+    });
+
+    it("throws when an entry is not a non-empty string", () => {
+      for (const entry of [42, "", null, undefined, ["a.jpg"]]) {
+        expect(() => validateInputImages({ inputs: [entry] })).toThrow(
+          '"inputs[]" must be a non-empty string',
+        );
+      }
+    });
+
+    it("throws when an entry has no extension", () => {
+      for (const name of ["photo", "photo.", "a.jp g"]) {
+        expect(() => validateInputImages({ inputs: [name] })).toThrow(
+          '"inputs[]" must be a single file name with an extension',
+        );
+      }
+    });
+
+    it("throws when an entry names a path instead of a file", () => {
+      const paths = [
+        "sub/a.jpg",
+        "./a.jpg",
+        "../a.jpg",
+        "/imgs/a.jpg",
+        "C:\\imgs\\a.jpg",
+        "..\\a.jpg",
+        "a.jpg/",
+      ];
+      for (const name of paths) {
+        expect(() => validateInputImages({ inputs: [name] })).toThrow(
+          '"inputs[]" must be a single file name with an extension',
+        );
+      }
+    });
+
+    it("throws when an entry is a URL", () => {
+      for (const name of [
+        "https://x.com/a.jpg",
+        "http://x/a.jpg",
+        "//x/a.jpg",
+        "a.jpg?v=1",
+        "a.jpg#f",
+      ]) {
+        expect(() => validateInputImages({ inputs: [name] })).toThrow(
+          '"inputs[]" must be a single file name with an extension',
+        );
+      }
+    });
+
+    it("throws when an entry is a hidden file name", () => {
+      for (const name of [".hidden", ".", ".."]) {
+        expect(() => validateInputImages({ inputs: [name] })).toThrow(
+          '"inputs[]" must be a single file name with an extension',
+        );
+      }
+    });
+
+    it("throws when whitespace pads the file name", () => {
+      for (const name of [" a.jpg", "a.jpg ", "\ta.jpg"]) {
+        expect(() => validateInputImages({ inputs: [name] })).toThrow(
+          '"inputs[]" must be a single file name with an extension',
+        );
+      }
+    });
+
+    it("checks the block-level key through validateJobData", () => {
+      const block = {
+        "base-workflow": "a",
+        "output-folder": "b",
+        "filename-prefix": "c",
+        prompts: [{ prompt: ["x"] }],
+      };
+      expect(
+        validateJobData([{ ...block, inputs: ["a.jpg", "b.png"] }]),
+      ).toBeUndefined();
+      expect(() => validateJobData([{ ...block, inputs: [] }])).toThrow(
+        '"inputs" must contain at least one image file name',
+      );
+      expect(() =>
+        validateJobData([{ ...block, inputs: ["sub/a.jpg", "b.jpg"] }]),
+      ).toThrow('"inputs[]" must be a single file name with an extension');
+    });
+
+    it("runs validateInputImages while validating a block", () => {
+      const block = {
+        "base-workflow": "a",
+        "output-folder": "b",
+        "filename-prefix": "c",
+        prompts: [{ prompt: ["x"] }],
+      };
+      // validateJobData and validateInputImages share validation.mjs, so no
+      // spy can watch the call: the caller uses the local binding rather than
+      // validation.validateInputImages (a vi.spyOn on the module namespace
+      // records zero calls here, and vi.mockSelf is absent from this Vitest
+      // build). The message text is the observable proof, and it comes from
+      // the function itself instead of being hard-coded. The second block is
+      // also invalid for clip-skip, so reporting the inputs error first shows
+      // the inputs check ran during that block's validation, at
+      // comfyui/workflow-builder/validation.mjs:95, while the first block
+      // without an inputs key is accepted.
+      function messageOf(run) {
+        try {
+          run();
+          return "";
+        } catch (err) {
+          return err.message;
+        }
+      }
+      const inputsError = messageOf(() =>
+        validateInputImages({ inputs: ["sub/a.jpg", "b.jpg"] }),
+      );
+      expect(inputsError).toContain(
+        '"inputs[]" must be a single file name with an extension',
+      );
+      expect(
+        messageOf(() =>
+          validateJobData([
+            { ...block },
+            {
+              ...block,
+              inputs: ["sub/a.jpg", "b.jpg"],
+              "clip-skip": "2",
+            },
+          ]),
+        ),
+      ).toBe(inputsError);
     });
   });
 

@@ -1,0 +1,10 @@
+# e2e-42: img2img base with two "inputs" images — the first fills the base
+# LoadImage, a second reference-image chain is appended and the sampler moves onto it.
+- base-workflow: img2img-base
+  inputs:
+    - first-reference.jpg
+    - second-reference.jpg
+  prompts:
+    - prompt:
+        - the two people from the reference photos posing together
+        - photorealistic, natural light

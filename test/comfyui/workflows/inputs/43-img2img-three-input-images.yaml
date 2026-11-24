@@ -1,0 +1,12 @@
+# e2e-43: img2img base with three "inputs" images — two chains are appended, each
+# conditions from the previous image's node and the sampler reads the last pair.
+- base-workflow: img2img-base
+  inputs:
+    - first-reference.jpg
+    - second-reference.jpg
+    - third-reference.jpg
+  prompts:
+    - prompt:
+        - the two people from figure one and figure two posing together
+        - the scenery from figure three behind them
+        - photorealistic, golden hour

@@ -92,6 +92,7 @@ export function validateJobData(data) {
 
     // Optional complex fields.
     validateLoras(item);
+    validateInputImages(item);
     validateClipSkip(item);
     validatePromptArray(item, "prompt");
     validatePromptArray(item, "negative-prompt");
@@ -164,6 +165,36 @@ export function validateLoras(effective, isOptional = true) {
     if (typeof lora.strength !== "number" || !Number.isFinite(lora.strength)) {
       throw new Error(
         `"loras[].strength" must be a finite number: ${JSON.stringify(lora)}`,
+      );
+    }
+  }
+}
+
+// A ComfyUI LoadImage node takes a bare file name, because the image already
+// sits in the server's input folder: a folder prefix or a URL never resolves
+// and an extension is part of the name. Spaces inside a name ("my photo.jpg")
+// are fine, a leading "." is not because it names a hidden file, not a name.
+const INPUT_IMAGE_FILE_NAME = /^[^.\s/\\][^/\\]*\.[A-Za-z0-9]+$/;
+
+// Checks the block-level "inputs" list of image file names. An absent key, and
+// a key with no value in the YAML, are both not an error.
+export function validateInputImages(block) {
+  if (block.inputs == null) return;
+  if (!Array.isArray(block.inputs)) {
+    throw new Error(
+      `"inputs" must be a list of image file names: ${JSON.stringify(block)}`,
+    );
+  }
+  if (block.inputs.length === 0) {
+    throw new Error(
+      `"inputs" must contain at least one image file name: ${JSON.stringify(block)}`,
+    );
+  }
+  for (const image of block.inputs) {
+    validateString(image, "inputs[]", false);
+    if (!INPUT_IMAGE_FILE_NAME.test(image)) {
+      throw new Error(
+        `"inputs[]" must be a single file name with an extension, not a path or URL: ${JSON.stringify(image)}`,
       );
     }
   }

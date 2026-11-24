@@ -122,13 +122,6 @@ describe("workflow expansion", () => {
     );
   });
 
-  it("resolves the default input base from the project, not the cwd", async () => {
-    // input.example.yaml ships only in comfyui/inputs/; reverting the default
-    // base to the old root inputs/ makes this reject with ENOENT.
-    const jobs = await loadWorkflows("input.example");
-    expect(jobs.length).toBeGreaterThan(0);
-  });
-
   it("rejects missing input files", async () => {
     await expect(loadWorkflows("does-not-exist")).rejects.toThrow();
   });

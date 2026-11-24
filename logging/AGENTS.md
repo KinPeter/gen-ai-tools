@@ -27,7 +27,7 @@ Filename helpers: `logging/utils.mjs` exports `stripExtension(filename)` (remove
 
 ## Document shape
 
-Flat — every field at the top level: `filename`, `base-workflow`, `output-folder`, `filename-prefix`, `loras`, `lora-strengths`, `clip-skip`, `tries`, `size`, `model`, `prompt`, `negative-prompt`, `steps`, `cfg`, `sampler`, `scheduler`, `seed`, `generatedIn` (formatted `m:ss`), `comfyJobId`.
+Flat — every field at the top level: `filename`, `base-workflow`, `output-folder`, `filename-prefix`, `inputs`, `loras`, `lora-strengths`, `clip-skip`, `tries`, `size`, `model`, `prompt`, `negative-prompt`, `steps`, `cfg`, `sampler`, `scheduler`, `seed`, `generatedIn` (formatted `m:ss`), `comfyJobId`. The fields named after YAML keys come from the input item as written, so `inputs` — the reference-image names an img2img run used — appears only on entries whose input file had it, and is not a `search-logs` filter key.
 
 ## Consumers
 

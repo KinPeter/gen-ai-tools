@@ -56,3 +56,15 @@
         - volumetric laser beams through fog, wet reflective streets
         - cinematic lighting, highly detailed
         - sparks in the air
+
+- base-workflow: img2img-workflow
+  output-folder: anime2real
+  filename-prefix: anime2real
+  inputs:
+    - first-input.jpg
+    - another-image.jpg
+    - one-more.jpg
+  prompts:
+    - prompt:
+        - Make the two anime characters from Figure 1 and Figure 2 to real persons posing together on a photorealistic image
+        - The background is the scenery from Figure 3

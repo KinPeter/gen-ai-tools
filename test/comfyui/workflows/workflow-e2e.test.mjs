@@ -5,8 +5,12 @@
  * `loadWorkflows()` using the fixture base workflows from `base-workflows/`
  * (checkpoint bases `full-base`, `minimal-base`, `minimal-no-clipskip`;
  * checkpoint-free UNETLoader bases `unet-base`, `unet-with-lora`,
- * `unet-with-shift` — mirrors of the production `example-unet-*` workflows),
- * and compare the result against pre-generated golden JSON files in `golden/`.
+ * `unet-with-shift` — mirrors of the production `example-unet-*` workflows;
+ * `img2img-base` is the `example-img2img-workflow` graph reduced to the one
+ * reference-image chain every img2img base carries, with its scaling settings
+ * changed from the example's so the chains "inputs" appends are provably
+ * copied from the base rather than hard-coded), and compare the result against
+ * pre-generated golden JSON files in `golden/`.
  *
  * Each test verifies that the workflow structure (node graph, inputs, overrides)
  * matches the expected golden file exactly.
@@ -49,6 +53,66 @@ async function loadWithGolden(baseName) {
     await readFile(path.join(GOLDEN_DIR, `${baseName}.json`), "utf8"),
   );
   return { workflows, golden };
+}
+
+// What the reference-image chain `img2img-base` carries: the scaling settings
+// its ImageScaleToTotalPixels node holds and the VAE its VAEEncode reads. Every
+// chain the "inputs" list appends must copy both — the base's values differ
+// from `example-img2img-workflow`'s `lanczos` / 1 / 1, so a builder that
+// hard-coded those instead of reading the base fails these tests.
+const BASE_SCALE_SETTINGS = {
+  upscale_method: "nearest-exact",
+  megapixels: 1.5,
+  resolution_steps: 8,
+};
+const BASE_REFERENCE_VAE = ["VAELoader_Base", 0];
+
+/**
+ * Walks the KSampler's `side` conditioning back through the ReferenceLatent
+ * nodes: `labels` are the reference images it passes through, oldest first, and
+ * `source` is the node the oldest one conditions from. Following the links is
+ * what proves an appended image conditions from the previous one and that the
+ * sampler reads the last pair — `toEqual` compares neither key order nor
+ * reachability.
+ */
+function followReferenceChain(wf, side) {
+  const labels = [];
+  let link = wf.Sampler.inputs[side];
+  while (wf[link[0]]?.class_type === "ReferenceLatent") {
+    labels.unshift(link[0]);
+    link = wf[link[0]].inputs.conditioning;
+  }
+  return { labels, source: link[0] };
+}
+
+/**
+ * Asserts the nodes the builder created for input image `index`: its own
+ * LoadImage carrying the filename YAML order put at that position, a scale and
+ * an encode node that copy the base chain's settings and VAE, and the two
+ * conditioning nodes that read the latent this image encodes to.
+ */
+function expectInputImageChain(wf, index, filename) {
+  const load = `LoadImage_${index}`;
+  const scale = `ImageScaleToTotalPixels_${index}`;
+  const encode = `VAEEncode_Reference_${index}`;
+  expect(wf[load]).toEqual({
+    class_type: "LoadImage",
+    inputs: { image: filename },
+  });
+  expect(wf[scale]).toEqual({
+    class_type: "ImageScaleToTotalPixels",
+    inputs: { image: [load, 0], ...BASE_SCALE_SETTINGS },
+  });
+  expect(wf[encode]).toEqual({
+    class_type: "VAEEncode",
+    inputs: { pixels: [scale, 0], vae: BASE_REFERENCE_VAE },
+  });
+  for (const side of ["Positive", "Negative"]) {
+    expect(wf[`ReferenceLatent_${side}_${index}`].inputs.latent).toEqual([
+      encode,
+      0,
+    ]);
+  }
 }
 
 // The input list drives the generated tests below, so it has to be read at
@@ -992,5 +1056,122 @@ describe("e2e workflow building: YAML input → workflow JSON", () => {
     }
     // Each variant rebuilt its own chain — the node objects are not shared.
     expect(workflows[0].workflow.Lora_1).not.toBe(workflows[1].workflow.Lora_1);
+  });
+
+  // --- img2img bases: the "inputs" image list drives the reference-image chain ---
+
+  test("41 img2img-single-input-image: one filename moves, no node is added", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "41-img2img-single-input-image",
+    );
+
+    expect(workflows).toHaveLength(1);
+    const wf = workflows[0].workflow;
+    // Key order is compared explicitly because `toEqual` ignores it: a single
+    // filename must not append any node to the base's one reference chain.
+    expect(Object.keys(wf)).toEqual(Object.keys(golden[0].workflow));
+    expect(wf.LoadImage_1.inputs).toEqual({ image: "only-reference.jpg" });
+    expect(wf.LoadImage_2).toBeUndefined();
+
+    // Nothing is rewired: the base pair still conditions the sampler, and the
+    // prompt override lands on the CLIP node that pair already seeds from.
+    expect(followReferenceChain(wf, "positive")).toEqual({
+      labels: ["ReferenceLatent_Positive_1"],
+      source: "PositiveCLIP_Base",
+    });
+    expect(followReferenceChain(wf, "negative")).toEqual({
+      labels: ["ReferenceLatent_Negative_1"],
+      source: "ConditioningZeroOut_Negative",
+    });
+    expect(wf.PositiveCLIP_Base.inputs.text).toBe(
+      "turn the person from the reference photo into a watercolor portrait",
+    );
+    expect(wf.Sampler.inputs.seed).not.toBe(102842507357673);
+  });
+
+  test("42 img2img-two-input-images: appends image 2 and hands it to the sampler", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "42-img2img-two-input-images",
+    );
+
+    expect(workflows).toHaveLength(1);
+    const wf = workflows[0].workflow;
+    // Key order is compared explicitly because `toEqual` ignores it: image 2's
+    // nodes sit between the base chain's negative ReferenceLatent and
+    // FluxKVCache_Model, where a hand-built chain would sit.
+    expect(Object.keys(wf)).toEqual(Object.keys(golden[0].workflow));
+    expect([wf.LoadImage_1.inputs.image, wf.LoadImage_2.inputs.image]).toEqual([
+      "first-reference.jpg",
+      "second-reference.jpg",
+    ]);
+    expectInputImageChain(wf, 2, "second-reference.jpg");
+
+    // Image 2 conditions from the base chain's end on both sides, so the sampler
+    // moves onto the pair that carries both images.
+    expect(followReferenceChain(wf, "positive")).toEqual({
+      labels: ["ReferenceLatent_Positive_1", "ReferenceLatent_Positive_2"],
+      source: "PositiveCLIP_Base",
+    });
+    expect(followReferenceChain(wf, "negative")).toEqual({
+      labels: ["ReferenceLatent_Negative_1", "ReferenceLatent_Negative_2"],
+      source: "ConditioningZeroOut_Negative",
+    });
+    expect(wf.Sampler.inputs.positive).toEqual([
+      "ReferenceLatent_Positive_2",
+      0,
+    ]);
+    expect(wf.Sampler.inputs.negative).toEqual([
+      "ReferenceLatent_Negative_2",
+      0,
+    ]);
+    // Only the conditioning links moved: the model path is still the base's.
+    expect(wf.Sampler.inputs.model).toEqual(["FluxKVCache_Model", 0]);
+  });
+
+  test("43 img2img-three-input-images: three images chained, last one conditions", async () => {
+    const { workflows, golden } = await loadWithGolden(
+      "43-img2img-three-input-images",
+    );
+
+    expect(workflows).toHaveLength(1);
+    const wf = workflows[0].workflow;
+    // Key order is compared explicitly because `toEqual` ignores it: the two
+    // appended images group the way a hand-built multi-image chain does — every
+    // load and scale pair, then the encodes, then the two conditioning chains.
+    expect(Object.keys(wf)).toEqual(Object.keys(golden[0].workflow));
+    expect([1, 2, 3].map((i) => wf[`LoadImage_${i}`].inputs.image)).toEqual([
+      "first-reference.jpg",
+      "second-reference.jpg",
+      "third-reference.jpg",
+    ]);
+    expectInputImageChain(wf, 2, "second-reference.jpg");
+    expectInputImageChain(wf, 3, "third-reference.jpg");
+
+    // Each image conditions from the previous image's same-side node, so both
+    // chains run through all three images and the sampler reads the last pair.
+    expect(followReferenceChain(wf, "positive")).toEqual({
+      labels: [
+        "ReferenceLatent_Positive_1",
+        "ReferenceLatent_Positive_2",
+        "ReferenceLatent_Positive_3",
+      ],
+      source: "PositiveCLIP_Base",
+    });
+    expect(followReferenceChain(wf, "negative")).toEqual({
+      labels: [
+        "ReferenceLatent_Negative_1",
+        "ReferenceLatent_Negative_2",
+        "ReferenceLatent_Negative_3",
+      ],
+      source: "ConditioningZeroOut_Negative",
+    });
+    expect(wf.Sampler.inputs.positive).toEqual([
+      "ReferenceLatent_Positive_3",
+      0,
+    ]);
+    expect(wf.Sampler.inputs.negative).toEqual([
+      "ReferenceLatent_Negative_3",
+      0,
+    ]);
   });
 });

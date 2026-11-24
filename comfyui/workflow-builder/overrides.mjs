@@ -7,6 +7,7 @@ import {
 } from "./utils.mjs";
 import { applyLoras } from "./loras.mjs";
 import { applyClipSkipOverride } from "./clip.mjs";
+import { applyInputImageOverrides } from "./input-images.mjs";
 
 /**
  * Apply sampler-level overrides: steps, cfg, seed.
@@ -98,6 +99,7 @@ export function applyOverrides(workflow, item, forceRandomSeed) {
   applyFilenamePrefixOverride(workflow, item);
   applyPositivePromptOverride(workflow, sampler, item);
   applyNegativePromptOverride(workflow, sampler, item);
+  applyInputImageOverrides(workflow, sampler, item);
 
   if (item?.loras != null) {
     applyLoras(workflow, item);

@@ -47,6 +47,14 @@ A list of blocks; each block shares its settings across a `prompts` list, and pe
     - seed: 12345
       prompt:
         - vintage, broken clouds
+
+- base-workflow: img2img-workflow # a base with one LoadImage → VAEEncode_Reference → ReferenceLatent chain
+  inputs: # reference images, in YAML order — bare names in the server's input/ folder
+    - first-reference.jpg
+    - second-reference.jpg
+  prompts:
+    - prompt:
+        - the two people from Figure 1 and Figure 2 posing together
 ```
 
 - `base-workflow`, `prompts` — required. Everything else is optional and falls back to the base workflow's values.
@@ -56,6 +64,7 @@ A list of blocks; each block shares its settings across a `prompts` list, and pe
 - `tries`: integer ≥ 1, default 1 — each try is a separate queued job.
 - `loras`: at least one `{name, strength}`; per-prompt `loras` replace the block's entirely. Works on both loaders: `LoraLoader` after a `CheckpointLoaderSimple` (`strength` also sets `strength_clip`) or `LoraLoaderModelOnly` after a `UNETLoader` such as `example-unet-base-workflow` (`strength_model` only).
 - `clip-skip`: overrides `stop_at_clip_layer`, creating a `CLIPSetLastLayer` node if the base has none; needs a `CheckpointLoaderSimple`, so it errors on a `UNETLoader` base.
+- `inputs`: the reference images of an img2img base, applied in YAML order. The first name replaces the filename on the base chain's `LoadImage`; each extra name appends its own `LoadImage_N` → `ImageScaleToTotalPixels_N` → `VAEEncode_Reference_N` → `ReferenceLatent_Positive_N` / `ReferenceLatent_Negative_N` chain — the scaling settings and the VAE link are copied from the base chain, image N conditions from image N-1, and the `KSampler`'s `positive` / `negative` move onto the last pair. Names are bare file names with an extension: no folder, no URL, and the image must already sit in the ComfyUI server's `input/` folder — the batch never uploads it and `COMFY_ASSETS_PATH` is never searched. Needs a base that carries exactly one `LoadImage` → `ImageScaleToTotalPixels` → `VAEEncode_Reference` → `ReferenceLatent` chain, unlabeled or numbered `_1`; a base without one errors (`comfyui/workflows/example-img2img-workflow.json` shows the two-image result graph, it is not a base to point `base-workflow` at). A per-prompt `inputs` replaces the block's list, but only the block's is validated, so keep the list on the block.
 
 Full details: `input-guidelines.md` in the asset base (`<COMFY_ASSETS_PATH>/docs/`, not in this repo) and [example input](./inputs/input.example.yaml). Base workflow JSONs live under `<COMFY_ASSETS_PATH>/workflows/`.
 
