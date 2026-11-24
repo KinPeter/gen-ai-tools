@@ -12,6 +12,8 @@
     "convert-all": "node comfyui/jobs/convert.mjs",
     "------------------ tools-hub -----------------": "",
     "tools-hub": "node tools-hub/index.mjs",
+    "------------------ ai-gateway ----------------": "",
+    "ai-gateway": "node ai-gateway/index.mjs",
     "------------------ logging -------------------": "",
     "log-cleanup": "node logging/mongodb/cleanup-log.mjs",
     "log-backup": "node logging/mongodb/backup-log.mjs",
