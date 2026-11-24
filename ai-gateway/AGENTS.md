@@ -90,14 +90,46 @@ never returned to the client. 405s carry an `Allow` header.
 ### Static routes
 
 - `static/index.mjs` — `createStaticRoutes(options)` returns
-  `[assets(), status(statusOptions)]`.
+  `[assets(), status(statusOptions), myImageUploads(), cyImageUploads()]`.
 - `static/assets/index.mjs` — `/assets/*` from `ai-gateway/assets/`. 404 on the
   bare mount (`/assets`, `/assets/`), traversal → 403, missing file → 404, other
   read failure → 500. Content type from the single `getContentType` map in
-  `utils/file.mjs` (text types carry `charset=utf-8`, unknown → `application/octet-stream`).
+  `utils/file.mjs` (text types carry `charset=utf-8`, unknown →
+  `application/octet-stream`). `assets/` holds the favicons and manifest plus the
+  two shared UI files, `image-uploads.css` and `image-uploads.js`.
 - `static/status/index.mjs` — `/` and `/index.html` (query string ignored,
   trailing slashes normalized). A temporary static status page rendered once at
   factory time (port, LAN URL, mounts).
+- `static/my-image-uploads/index.mjs` and `static/cy-image-uploads/index.mjs` —
+  the two Image Uploads pages at `/my-image-uploads` and `/cy-image-uploads`
+  (query string ignored, trailing slashes normalized, any sub-path serves the
+  same page). Each mount owns its route module and its `index.html`, and the two
+  pairs are deliberate duplicates: they differ only in the mount path, the log
+  label, the heading (`My Image Uploads` vs `Cheyoon Image Uploads` — the
+  subtitle is the same) and the two bootstrap values below. Merging the route
+  modules would share three path strings and nothing else.
+  Everything real is shared through `assets/`: `image-uploads.css` holds every
+  style, `image-uploads.js` exports `createImageUploadsUI({ apiBase, envVar })`
+  and holds all behaviour, so each HTML file is markup plus a four-line
+  `type="module"` bootstrap naming its own API mount (`/api/<mount>`) and the
+  folder env var its load-error hint should name; module scripts are deferred, so
+  the markup exists by the time the factory runs. The UI: left sidebar lists
+  filenames live from `<apiBase>/list`; the right side is a drop area that picks
+  one file at a time (drop or the hidden file input behind the button) and POSTs
+  it as `multipart/form-data` to `<apiBase>/upload`, then refreshes the list and
+  resets itself. Rows are `<label>`s whose leading checkbox (accessible name =
+  the filename) marks the file for deletion; a centered `Delete (N)` button at
+  the bottom of the list opens a native `<dialog>` that confirms and lists up to
+  5 selected filenames (`+ n more selected files` beyond five). Confirming POSTs
+  `{ files: [...] }` to `<apiBase>/delete` and refreshes the list when done; a
+  failed delete keeps the checks so the dialog can retry, and refreshes the list
+  once the dialog closes (`Refresh list` recovers either way).
+  `assets/image-uploads.js` is 449 lines — over the 200-line split rule on
+  purpose: it is a no-build-step browser bundle served as one file so each page
+  needs one script request, and splitting it behind `/assets/` would add
+  requests without enabling any reuse; every function inside it is 33 lines or
+  fewer. Route modules read their HTML from disk per request; 500 on read
+  failure.
 
 ### Shared utils
 
@@ -122,11 +154,11 @@ is called on `SIGINT`/`SIGTERM` (exit 0); an unhandled startup failure exits 1.
 
 ### Configuration
 
-| Env var                        | Default | Effect                                                        |
-| ------------------------------ | ------- | ------------------------------------------------------------- |
-| `AIGW_PORT`                    | `4218`  | Listening port                                                |
-| `AIGW_MY_IMAGE_UPLOADS_FOLDER` | unset   | Folder for `/api/my-image-uploads/*`; 503 when unset or empty |
-| `AIGW_CY_IMAGE_UPLOADS_FOLDER` | unset   | Folder for `/api/cy-image-uploads/*`; 503 when unset or empty |
+| Env var                        | Default | Effect                                                                                  |
+| ------------------------------ | ------- | --------------------------------------------------------------------------------------- |
+| `AIGW_PORT`                    | `4218`  | Listening port                                                                          |
+| `AIGW_MY_IMAGE_UPLOADS_FOLDER` | unset   | Folder for the `/my-image-uploads` page and its `/api/*` mount; 503 when unset or empty |
+| `AIGW_CY_IMAGE_UPLOADS_FOLDER` | unset   | Folder for the `/cy-image-uploads` page and its `/api/*` mount; 503 when unset or empty |
 
 Both folder env vars are documented in `.env.example`.
 
@@ -144,4 +176,11 @@ manual: start `npm run ai-gateway` with the env vars set, then exercise the
 endpoints against a live server (list `/list`, upload `/upload`, delete
 `/delete`, checking both `/api/my-image-uploads/*` and `/api/cy-image-uploads/*`
 for folder isolation). Any change to the shared factory in
-`api/shared/image-uploads/` must be re-verified on every mounted prefix.
+`api/shared/image-uploads/` must be re-verified on every mounted prefix. The same
+holds for the shared UI: any change to `assets/image-uploads.js` or
+`assets/image-uploads.css` must be re-verified in a browser on **both**
+`/my-image-uploads` and `/cy-image-uploads`, since both pages import them.
+Note that the list refresh after a failed delete runs in the confirm dialog's
+`close` event, which Chrome can hold back while a tab is not painting (an
+occluded or unfocused automation tab) — verify that path in a visible window, or
+after clicking the page.
