@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useFileBrowserFocus } from "../../hooks/useFileBrowserFocus";
 import { useFileBrowserHover } from "../../hooks/useFileBrowserHover";
 import { useFileBrowserKeyboard } from "../../hooks/useFileBrowserKeyboard";
 import { useSelectedEntryScroll } from "../../hooks/useSelectedEntryScroll";
@@ -21,6 +22,10 @@ export function FileBrowser({
   onDelete,
 }) {
   const listRef = useRef(null);
+
+  // Re-focus the list after the listing is re-created and focus used to be
+  // inside it, so keyboard navigation keeps working.
+  useFileBrowserFocus(listRef, currentPath, entries);
 
   const { hoveredIndex, setHoveredIndex } = useFileBrowserHover(entries);
 

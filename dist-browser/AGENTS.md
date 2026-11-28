@@ -30,7 +30,7 @@ renders without the shared palette. View the styled UI through `npm run tools-hu
 | `src/App.jsx`     | `Layout` wrapped in `ThemeProvider`.                                                                                                                                                                                   |
 | `src/context/`    | `ThemeContext.jsx` — dark/light theme (system preference, explicit override).                                                                                                                                          |
 | `src/components/` | `Layout` (three columns + wiring), `Column`, `ResizeHandle`, `TopBar` (refresh, title, theme), `FileBrowser` + `FileBrowserEntry` + `FileBrowserIcons`, `ImageViewer`, `LogViewer`. Each component has its own `.css`. |
-| `src/hooks/`      | Listing, selection, trash, keyboard, hover, scroll, image load/size, log lookup, column resizing, folder path.                                                                                                         |
+| `src/hooks/`      | Listing, selection, trash, keyboard, hover, focus restore, scroll, image load/size, log lookup, column resizing, folder path.                                                                                          |
 | `src/utils/`      | Pure helpers: entry sorting/paths, image-extension check, URL builders, folder normalization + persistence, title, JSON colorization, resize constraints.                                                              |
 
 Convention: components render, hooks hold state and do I/O, utils are pure and
@@ -73,6 +73,11 @@ used by both the API handlers and the UI.
   returns 200 even for failed paths, so the body's `ok` flag is checked.
 - The selected row is scrolled into view; the hover highlight is dropped whenever
   the listing changes.
+- A listing is re-created (folder navigation, delete, refresh), so a row that had
+  focus is removed from the DOM and keyboard focus falls back to `<body>`. When
+  the keyboard was inside the list before the change, the list is re-focused with
+  `preventScroll` so keyboard navigation keeps working without jumping the
+  viewport. Focus deliberately moved to another control is left alone.
 - Column widths are clamped by `MIN_WIDTHS` in `utils/resize-utils.mjs`.
 - The filename is labelled below the image, or overlaid when the image fills the
   column (`useImageSizeObserver`, ResizeObserver). `ImageViewer` accepts a

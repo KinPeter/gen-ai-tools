@@ -35,21 +35,28 @@ function renderFileBrowser(props = {}) {
   };
 }
 
-// One tick, long enough for the `setTimeout(..., 0)` in the focus hook to run.
+// One tick, long enough to let any focus-restore effect settle.
 function settle() {
   return new Promise((resolve) => setTimeout(resolve, 20));
+}
+
+function focusRow(container, index) {
+  const row = container.querySelector(`[data-index="${index}"]`);
+  row.focus();
+  expect(row).toBe(document.activeElement);
 }
 
 // --- Lifecycle ---
 
 beforeAll(() => {
-  // jsdom does not implement scrollIntoView; the focus tests do not care about
-  // it but the scroll hook runs on every render.
+  // jsdom does not implement scrollIntoView; tests do not care about it.
   Element.prototype.scrollIntoView = vi.fn();
 });
 
 afterEach(() => {
   cleanup();
+  document.activeElement?.blur?.();
+  document.body.innerHTML = "";
 });
 
 // --- Tests ---
@@ -64,7 +71,7 @@ describe("file browser focus", () => {
     expect(document.activeElement).not.toBe(list);
   });
 
-  it("does not focus the list on navigation (auto-focus hook removed)", async () => {
+  it("does not focus the list on navigation when focus was never inside it", async () => {
     const { container, rerenderFileBrowser } = renderFileBrowser();
 
     rerenderFileBrowser({
@@ -76,17 +83,37 @@ describe("file browser focus", () => {
 
     await settle();
 
-    // The auto-focus-on-navigate effect was removed along with the
-    // handleListFocus handler. The list no longer receives focus on path
-    // changes; the scroll jump caused by handleListFocus is the reason.
     expect(document.activeElement).not.toBe(list);
   });
 
-  it("does not shift focus on navigation when a new folder is entered", async () => {
+  it("focuses the list on navigation when a row had focus", async () => {
+    const { container, rerenderFileBrowser } = renderFileBrowser();
+    const list = container.querySelector(".file-browser-list");
+
+    focusRow(container, 1); // img3.png row had keyboard focus
+
+    rerenderFileBrowser({
+      currentPath: "",
+      entries: [{ name: "img1.png", type: "file", ext: "png" }],
+      selectedIndex: 0,
+    });
+
+    await settle();
+
+    // The focused row was replaced by a new listing; the list gets focus back
+    // so keyboard navigation keeps working.
+    expect(document.activeElement).toBe(list);
+  });
+
+  it("focuses the list on navigation when a new folder is entered", async () => {
     const { container, rerenderFileBrowser } = renderFileBrowser({
       currentPath: "",
       entries: [{ name: "img1.png", type: "file", ext: "png" }],
+      selectedIndex: 0,
     });
+    const list = container.querySelector(".file-browser-list");
+
+    focusRow(container, 0);
 
     rerenderFileBrowser({
       currentPath: "archive/2024",
@@ -94,43 +121,95 @@ describe("file browser focus", () => {
         { name: "..", type: "folder", ext: "" },
         { name: "img7.png", type: "file", ext: "png" },
       ],
+      selectedIndex: 0,
     });
 
     await settle();
 
-    // The list and the ".." button are no longer auto-focused. Navigation
-    // relies on the onKeyDown handler on the list for keyboard input.
-    expect(document.activeElement).not.toBe(
-      container.querySelector(".file-browser-list"),
-    );
+    expect(document.activeElement).toBe(list);
   });
 
-  it("does not re-focus when the path is unchanged", async () => {
+  it("focuses the list after a delete removes the focused row (path unchanged)", async () => {
+    const { container, rerenderFileBrowser } = renderFileBrowser();
+    const list = container.querySelector(".file-browser-list");
+
+    focusRow(container, 1); // img3.png row had keyboard focus
+
+    // Same folder, the img3.png row is gone after the trash refresh.
+    rerenderFileBrowser({
+      entries: [{ name: "..", type: "folder", ext: "" }],
+      selectedIndex: 0,
+    });
+
+    await settle();
+
+    expect(document.activeElement).toBe(list);
+  });
+
+  it("does not re-focus when the path is unchanged and only the selection moves", async () => {
     const { container, rerenderFileBrowser } = renderFileBrowser({
       currentPath: "",
-      entries: [{ name: "img1.png", type: "file", ext: "png" }],
+      entries: [
+        { name: "img1.png", type: "file", ext: "png" },
+        { name: "img2.png", type: "file", ext: "png" },
+      ],
+      selectedIndex: 0,
     });
-    const list = container.querySelector(".file-browser-list");
+    // Capture the focused row node before the rerender; the focused row keeps
+    // its identity across a selection-only move.
+    const focusedRow = container.querySelector('[data-index="0"]');
+    focusRow(container, 0);
 
     rerenderFileBrowser({ selectedIndex: 1 });
 
     await settle();
 
-    expect(document.activeElement).not.toBe(list);
+    // entries and path are unchanged: the effect does not re-focus and the
+    // focused row keeps its own node.
+    expect(document.activeElement).toBe(focusedRow);
+  });
+
+  it("leaves deliberate focus on an outside control alone when the listing changes", async () => {
+    const outsideButton = document.createElement("button");
+    outsideButton.textContent = "refresh";
+    document.body.appendChild(outsideButton);
+
+    const { rerenderFileBrowser } = renderFileBrowser({
+      currentPath: "",
+      entries: [{ name: "img1.png", type: "file", ext: "png" }],
+      selectedIndex: 0,
+    });
+
+    outsideButton.focus();
+    expect(document.activeElement).toBe(outsideButton);
+
+    rerenderFileBrowser({
+      currentPath: "",
+      entries: [
+        { name: "img1.png", type: "file", ext: "png" },
+        { name: "img2.png", type: "file", ext: "png" },
+      ],
+      selectedIndex: 0,
+    });
+
+    await settle();
+
+    // focus was deliberately on the outside control: it is not stolen
+    expect(document.activeElement).toBe(outsideButton);
+
+    outsideButton.remove();
   });
 
   it("does not redirect focus to the .. button when the list is focused", () => {
     const { container } = renderFileBrowser();
     const list = container.querySelector(".file-browser-list");
 
-    // There is no onFocus handler on the list anymore. The old behavior of
-    // redirecting focus to the ".." button was removed because it caused a
-    // scroll jump: the browser auto-scrolls to the newly focused element,
-    // sending the viewport back to the top of the list.
+    // The list has no onFocus handler; the focused ".." button was removed
+    // along with the handleListFocus redirect.
     fireEvent.focus(list);
 
-    // jsdom does not update activeElement without a real focus handler.
-    // The important assertion is that no parent-button focus was triggered.
+    // jsdom does not update activeElement on fireEvent.focus; the important
+    // assertion is that no parent-button focus was triggered.
     expect(container.querySelector(".file-browser-icon-parent")).toBeTruthy();
   });
 
@@ -145,7 +224,7 @@ describe("file browser focus", () => {
 
     fireEvent.focus(list);
 
-    // Nothing to redirect to: the focus handler is a no-op at the root.
+    // No redirect to a ".." button exists at the dist root.
     expect(document.activeElement).toBe(document.body);
   });
 
@@ -162,8 +241,8 @@ describe("file browser focus", () => {
     fireEvent.keyDown(list, { key: "Home" });
 
     expect(onSelect).toHaveBeenCalledWith(subfolderEntries[0]);
-    // The old behavior focused the ".." button. Now focus stays where it was;
-    // the selection is handled entirely by the keyboard handler.
+    // The focus is handled entirely by the keyboard handler; the list does
+    // not get focused by Home.
     expect(container.querySelector(".file-browser-icon-parent")).toBeTruthy();
   });
 });

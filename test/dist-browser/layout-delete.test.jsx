@@ -489,6 +489,32 @@ describe("Layout delete flow", () => {
     ).toHaveLength(2);
   });
 
+  it("restores keyboard focus to the list after the focused row is deleted", async () => {
+    const { container } = renderLayout({
+      "": [
+        folder("archive"),
+        image("img1.png"),
+        image("img2.jpg"),
+        image("img3.png"),
+      ],
+    });
+
+    await selectImage(container, "img2.jpg");
+    // Keyboard focus inside the list: the focused row is the one that gets
+    // removed by the delete below.
+    itemByName(container, "img2.jpg").focus();
+
+    deleteSelected(container);
+
+    await waitFor(() =>
+      expect(viewerSrc(container)).toBe("/api/dist-browser/images/img3.png"),
+    );
+
+    const list = container.querySelector(".file-browser-list");
+    expect(list).toBeTruthy();
+    expect(document.activeElement).toBe(list);
+  });
+
   it("shows the previous image when the last image is deleted", async () => {
     const { container } = renderLayout({
       "": [
