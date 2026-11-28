@@ -59,8 +59,8 @@ export function createImageUploadsUI({ apiBase, envVar }) {
     emptyEl.classList.toggle("error", error);
   }
 
-  function filesLabel(n) {
-    return n === 1 ? "1 file" : `${n} files`;
+  function plural(n, word) {
+    return n === 1 ? `1 ${word}` : `${n} ${word}s`;
   }
 
   /* One place renders the status line: deleting wins, then the load error,
@@ -77,7 +77,7 @@ export function createImageUploadsUI({ apiBase, envVar }) {
     } else if (loading) {
       parts.push("Loading…");
     } else if (fileCount !== null) {
-      parts.push(filesLabel(fileCount));
+      parts.push(plural(fileCount, "file"));
       if (selected.size) parts.push(`${selected.size} selected`);
     } else {
       parts.push("Ready");
@@ -168,17 +168,23 @@ export function createImageUploadsUI({ apiBase, envVar }) {
   const uploadBtnEl = document.getElementById("upload-btn");
   const fileInputEl = document.getElementById("file-input");
   const dropMsgEl = document.getElementById("drop-msg");
+  const pendingListEl = document.getElementById("pending-list");
+  const pendingMoreEl = document.getElementById("pending-more");
+  const clearBtnEl = document.getElementById("clear-btn");
 
-  const INITIAL_LABEL = "Select a file to upload";
-  let pendingFile = null;
+  const INITIAL_LABEL = "Select files to upload";
+  const MAX_LISTED = 5; // names shown in a list before the "+ n files" overflow line
+  let pendingFiles = []; // selected files waiting to be uploaded
   let uploading = false;
+  let deferredFiles = null; // a selection made mid-upload, applied when the batch ends
   let dragDepth = 0; // enter/leave fire for child elements too — depth keeps the highlight correct
 
   function setButtonLabel() {
-    uploadBtnEl.textContent = pendingFile
-      ? `Upload ${pendingFile.name}`
+    uploadBtnEl.textContent = pendingFiles.length
+      ? `Upload ${plural(pendingFiles.length, "file")}`
       : INITIAL_LABEL;
     uploadBtnEl.disabled = uploading;
+    clearBtnEl.hidden = uploading || !pendingFiles.length;
   }
 
   function setDropMessage(text, { busy = false, error = false } = {}) {
@@ -187,25 +193,63 @@ export function createImageUploadsUI({ apiBase, envVar }) {
     dropMsgEl.classList.toggle("error", error);
   }
 
-  function pickFile(file) {
-    if (!file || uploading) return;
-    pendingFile = file;
-    setButtonLabel();
-    setDropMessage("");
+  /* The pending list mirrors the delete dialog's confirm list: up to MAX_LISTED
+         names, then a "+ n files" overflow line. Hidden entirely when empty. */
+  function renderPendingList() {
+    if (!pendingFiles.length) {
+      pendingListEl.hidden = true;
+      pendingMoreEl.hidden = true;
+      pendingListEl.replaceChildren();
+      return;
+    }
+    pendingListEl.hidden = false;
+    pendingListEl.replaceChildren(
+      ...pendingFiles.slice(0, MAX_LISTED).map((file) => {
+        const li = el("li");
+        li.textContent = file.name;
+        li.title = file.name;
+        return li;
+      }),
+    );
+    const extra = pendingFiles.length - MAX_LISTED;
+    if (extra > 0) {
+      pendingMoreEl.textContent = `+ ${plural(extra, "file")}`;
+      pendingMoreEl.hidden = false;
+    } else {
+      pendingMoreEl.hidden = true;
+    }
   }
 
-  /* Back to the initial state: no file, no message, original label. */
+  /* Back to the initial state: no files, no list, no message, original label. */
   function resetDropArea() {
-    pendingFile = null;
-    setButtonLabel();
+    pendingFiles = [];
+    renderPendingList();
     setDropMessage("");
+    setButtonLabel();
   }
 
-  async function uploadPending(file) {
-    if (uploading) return;
-    uploading = true;
+  /* Take a fresh selection, replacing whatever was pending. A selection made
+         while the batch is in flight is held and applied when the batch ends
+         instead of being silently discarded. */
+  function selectFiles(fileList) {
+    const files = [...(fileList || [])];
+    if (!files.length) return;
+    if (uploading) {
+      deferredFiles = files;
+      setDropMessage(
+        "Upload in progress — the new selection will apply when it ends",
+        { busy: true },
+      );
+      return;
+    }
+    pendingFiles = files;
+    renderPendingList();
     setButtonLabel();
-    setDropMessage("Uploading…", { busy: true });
+    setDropMessage(""); // a fresh selection clears any previous error message
+  }
+
+  /* One file: returns null on success, otherwise the error to report. */
+  async function uploadOne(file) {
     try {
       const form = new FormData();
       form.append("file", file); // field name is not assumed by the endpoint
@@ -214,38 +258,85 @@ export function createImageUploadsUI({ apiBase, envVar }) {
         body: form,
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setDropMessage(
-          (data && data.error) || `Upload failed (${res.status})`,
-          { error: true },
-        );
-        return; // the file stays selected so the user can retry
-      }
-      resetDropArea();
-      loadFiles(); // refresh the list — the saved/deduped name appears there
+      if (!res.ok)
+        return (data && data.error) || `Upload failed (${res.status})`;
+      return null;
     } catch {
-      setDropMessage("Could not reach the gateway — is it running?", {
-        error: true,
-      });
-    } finally {
-      uploading = false;
-      setButtonLabel();
+      return "Could not reach the gateway — is it running?";
     }
+  }
+
+  /* The failure line: one "name: error" entry per failed file (up to
+         MAX_LISTED, then a "+ n files failed" overflow) joined with " · " so a
+         filename containing a comma cannot be misread. */
+  function failureMessage(failed) {
+    const listed = failed.slice(0, MAX_LISTED);
+    const detail = listed
+      .map(({ file, error }) => `${file.name}: ${error}`)
+      .join(" · ");
+    const more = failed.length - MAX_LISTED;
+    const moreText = more > 0 ? ` · + ${plural(more, "file")} failed` : "";
+    const word = plural(failed.length, "file");
+    const retry =
+      failed.length === 1
+        ? "It stays selected — retry or clear"
+        : "They stay selected — retry or clear";
+    return `Failed to upload ${word} — ${detail}${moreText} — ${retry}`;
+  }
+
+  /* Each file uploads in turn; one failure does not stop the batch — the failed
+         files stay selected so a retry is one click away. */
+  async function uploadPending() {
+    if (uploading || !pendingFiles.length) return;
+    uploading = true;
+    setButtonLabel();
+    const files = pendingFiles;
+    const failed = [];
+    for (let i = 0; i < files.length; i++) {
+      setDropMessage(`uploading ${i + 1} / ${files.length} files...`, {
+        busy: true,
+      });
+      const error = await uploadOne(files[i]);
+      if (error) failed.push({ file: files[i], error });
+    }
+    uploading = false;
+    const deferred = deferredFiles;
+    deferredFiles = null;
+    if (deferred) {
+      // A selection made mid-upload replaces whatever the batch left behind.
+      pendingFiles = deferred;
+      renderPendingList();
+      setDropMessage("");
+      setButtonLabel();
+    } else if (failed.length) {
+      pendingFiles = failed.map((f) => f.file);
+      renderPendingList();
+      setDropMessage(failureMessage(failed), { error: true });
+      setButtonLabel();
+    } else {
+      resetDropArea();
+    }
+    loadFiles(); // refresh the list — even a partially failed batch may have saved files
   }
 
   uploadBtnEl.addEventListener("click", () => {
     if (uploading) return;
-    if (pendingFile) {
-      uploadPending(pendingFile);
+    if (pendingFiles.length) {
+      uploadPending();
       return;
     }
     fileInputEl.click();
   });
 
+  clearBtnEl.addEventListener("click", () => {
+    if (uploading) return;
+    resetDropArea();
+  });
+
   fileInputEl.addEventListener("change", () => {
-    const file = fileInputEl.files && fileInputEl.files[0];
-    if (file) pickFile(file);
-    fileInputEl.value = ""; // so the same file can be picked again later
+    const files = [...(fileInputEl.files || [])];
+    fileInputEl.value = ""; // so the same files can be picked again later
+    selectFiles(files);
   });
 
   /* A file dropped outside the panel would otherwise replace the page. */
@@ -269,8 +360,7 @@ export function createImageUploadsUI({ apiBase, envVar }) {
     e.preventDefault();
     dragDepth = 0;
     dropAreaEl.classList.remove("drag-over");
-    const files = e.dataTransfer && e.dataTransfer.files;
-    pickFile(files && files[0]);
+    selectFiles(e.dataTransfer && e.dataTransfer.files);
   });
 
   /* ---- Deleting: row checkboxes, delete bar, confirm dialog ---- */
@@ -284,7 +374,6 @@ export function createImageUploadsUI({ apiBase, envVar }) {
   const confirmBtnEl = document.getElementById("confirm-btn");
   const cancelBtnEl = document.getElementById("cancel-btn");
 
-  const MAX_LISTED = 5; // names shown in the dialog before "+ n more selected files"
   let deleteError = false; // the last delete failed — the list may be out of date
 
   function checkedNames() {
@@ -305,10 +394,6 @@ export function createImageUploadsUI({ apiBase, envVar }) {
     renderStatus();
   }
 
-  function filesPhrase(n) {
-    return n === 1 ? "selected file" : "selected files";
-  }
-
   function setConfirmMessage(text, { error = false } = {}) {
     confirmMsgEl.textContent = text;
     confirmMsgEl.classList.toggle("error", error);
@@ -326,9 +411,7 @@ export function createImageUploadsUI({ apiBase, envVar }) {
     const names = checkedNames();
     if (!names.length) return; // nothing checked
     deleteError = false;
-    confirmTitleEl.textContent = `Delete ${names.length} ${
-      names.length === 1 ? "file" : "files"
-    }?`;
+    confirmTitleEl.textContent = `Delete ${plural(names.length, "file")}?`;
     confirmListEl.replaceChildren(
       ...names.slice(0, MAX_LISTED).map((name) => {
         const li = el("li");
@@ -339,7 +422,7 @@ export function createImageUploadsUI({ apiBase, envVar }) {
     );
     const extra = names.length - MAX_LISTED;
     if (extra > 0) {
-      confirmMoreEl.textContent = `+ ${extra} more ${filesPhrase(extra)}`;
+      confirmMoreEl.textContent = `+ ${extra} more ${plural(extra, "selected file")}`;
       confirmMoreEl.hidden = false;
     } else {
       confirmMoreEl.hidden = true;

@@ -115,16 +115,26 @@ never returned to the client. 405s carry an `Allow` header.
   folder env var its load-error hint should name; module scripts are deferred, so
   the markup exists by the time the factory runs. The UI: left sidebar lists
   filenames live from `<apiBase>/list`; the right side is a drop area that picks
-  one file at a time (drop or the hidden file input behind the button) and POSTs
-  it as `multipart/form-data` to `<apiBase>/upload`, then refreshes the list and
-  resets itself. Rows are `<label>`s whose leading checkbox (accessible name =
-  the filename) marks the file for deletion; a centered `Delete (N)` button at
-  the bottom of the list opens a native `<dialog>` that confirms and lists up to
-  5 selected filenames (`+ n more selected files` beyond five). Confirming POSTs
-  `{ files: [...] }` to `<apiBase>/delete` and refreshes the list when done; a
-  failed delete keeps the checks so the dialog can retry, and refreshes the list
-  once the dialog closes (`Refresh list` recovers either way).
-  `assets/image-uploads.js` is 449 lines — over the 200-line split rule on
+  multiple files at a time (drop or the hidden file input behind the button),
+  lists the selection in a pending list (up to 5 names, then a `+ n files`
+  overflow line) and POSTs them one at a time — sequentially — as
+  `multipart/form-data` to `<apiBase>/upload`, showing `uploading x / y files...`
+  progress and an `Upload X files` button label. A `Clear selection` button
+  empties the pending list; the button label falls back to `Select files to
+upload` when nothing is pending. Failures do not stop the batch: failed files
+  stay selected (so a retry is one click away) and the failure message lists
+  each failed file with its error (`name: error`, up to 5 then `+ n files
+failed`, joined with `·`). A selection made mid-upload is held and applied
+  when the batch ends (replace-on-select); the sidebar list refreshes after
+  every batch, even a partially failed one. Rows are `<label>`s whose leading
+  checkbox (accessible name = the filename) marks the file for deletion; a
+  centered `Delete (N)` button at the bottom of the list opens a native
+  `<dialog>` that confirms and lists up to 5 selected filenames (`+ n more
+selected files` beyond five). Confirming POSTs `{ files: [...] }` to
+  `<apiBase>/delete` and refreshes the list when done; a failed delete keeps
+  the checks so the dialog can retry, and refreshes the list once the dialog
+  closes (`Refresh list` recovers either way).
+  `assets/image-uploads.js` is 532 lines — over the 200-line split rule on
   purpose: it is a no-build-step browser bundle served as one file so each page
   needs one script request, and splitting it behind `/assets/` would add
   requests without enabling any reuse; every function inside it is 33 lines or

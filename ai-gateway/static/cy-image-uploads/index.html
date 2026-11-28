@@ -83,13 +83,18 @@
           <path d="M8 7.5l4-4 4 4" />
           <rect x="3.5" y="15" width="17" height="5.5" rx="1.5" />
         </svg>
-        <h2>Drop an image here</h2>
+        <h2>Drop your images here</h2>
+        <ul class="pending-list" id="pending-list" hidden></ul>
+        <p class="pending-more" id="pending-more" hidden></p>
         <button class="upload-btn" id="upload-btn" type="button">
-          Select a file to upload
+          Select files to upload
         </button>
-        <p class="drop-hint">or drop a file anywhere in this panel</p>
+        <button class="clear-btn" id="clear-btn" type="button" hidden>
+          Clear selection
+        </button>
+        <p class="drop-hint">or drop files anywhere in this panel</p>
         <p class="drop-msg" id="drop-msg" aria-live="polite"></p>
-        <input type="file" id="file-input" accept="image/*" hidden />
+        <input type="file" id="file-input" accept="image/*" multiple hidden />
       </div>
     </main>
 

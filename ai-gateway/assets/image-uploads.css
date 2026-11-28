@@ -322,6 +322,59 @@ body {
   color: var(--danger);
 }
 
+/* ---- Pending-file list in the drop panel (mirrors the confirm list) ---- */
+.pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-width: min(100%, 340px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.pending-list li,
+.confirm-list li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #20242d;
+  font-size: 0.86rem;
+}
+.pending-more,
+.confirm-more {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.pending-more {
+  margin: 0;
+}
+
+/* ---- Clear button (pending selection) ---- */
+.clear-btn {
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.clear-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+.clear-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* ---- Delete bar (bottom of the list, centered) ---- */
 .delete-bar {
   display: flex;
@@ -396,19 +449,8 @@ dialog.confirm::backdrop {
   padding: 0;
   list-style: none;
 }
-.confirm-list li {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 7px 10px;
-  border-radius: 7px;
-  background: #20242d;
-  font-size: 0.86rem;
-}
 .confirm-more {
   margin: 6px 0 0;
-  font-size: 0.84rem;
-  color: var(--muted);
 }
 .confirm-msg {
   margin: 12px 0 0;
