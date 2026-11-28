@@ -1,3 +1,5 @@
+import os from "node:os";
+import path from "node:path";
 import { describe, afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   mongoClients,
@@ -130,6 +132,16 @@ describe("batch orchestrator", () => {
     mocks.queuePrompt.mockRejectedValueOnce(new Error("queue failed"));
     await expect(main()).resolves.toBe(false);
     expect(mocks.requestMemoryCleanup).toHaveBeenCalled();
+  });
+
+  it("passes the resolved dist folder to convertOutputs", async () => {
+    primePipeline();
+    const tmpDist = path.join(os.tmpdir(), "batch-test-dist");
+    vi.stubEnv("COMFY_DIST_PATH", tmpDist);
+    await expect(main()).resolves.toBe(true);
+    const [saved, options] = mocks.convertOutputs.mock.calls.at(-1);
+    expect(saved).toEqual([{ filename: "x.png", destDir: "output" }]);
+    expect(options.distBaseDir).toBe(tmpDist);
   });
 
   it("reports the asset base and looks for the input inside it", async () => {

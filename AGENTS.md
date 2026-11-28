@@ -37,18 +37,18 @@ npm install
 
 ## Repo layout
 
-| Directory        | Purpose                                                                             |
-| ---------------- | ----------------------------------------------------------------------------------- |
-| `comfyui/`       | ComfyUI inference — workflow building, job execution, output handling, log writing. |
-| `runpod/`        | RunPod GPU pod lifecycle — create, wait, stop, terminate.                           |
-| `logging/`       | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.  |
-| `tools-hub/`     | Local Node HTTP server for static UIs and API routes                                |
-| `ai-gateway/`    | LAN-facing HTTP server (status page, static assets, image-upload API mounts).       |
-| `dist-browser/`  | Vite + React browser UI for serving `dist/` outputs.                                |
-| `test/`          | Vitest unit and E2E golden-file tests (mirrors source structure).                   |
-| `shell-scripts/` | Shell helpers (bash 3.2+ and zsh) registered by `session.sh` (repo root).           |
-| `dist/`          | Generated JPG outputs (mirrors `output/` subfolders).                               |
-| `output/`        | Raw PNG outputs + run logs. All gitignored.                                         |
+| Directory        | Purpose                                                                                                                                                              |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `comfyui/`       | ComfyUI inference — workflow building, job execution, output handling, log writing.                                                                                  |
+| `runpod/`        | RunPod GPU pod lifecycle — create, wait, stop, terminate.                                                                                                            |
+| `logging/`       | MongoDB logging (new primary), DynamoDB (legacy), local scripts, browser UI build.                                                                                   |
+| `tools-hub/`     | Local Node HTTP server for static UIs and API routes                                                                                                                 |
+| `ai-gateway/`    | LAN-facing HTTP server (status page, static assets, image-upload API mounts).                                                                                        |
+| `dist-browser/`  | Vite + React browser UI for serving `dist/` outputs.                                                                                                                 |
+| `test/`          | Vitest unit and E2E golden-file tests (mirrors source structure).                                                                                                    |
+| `shell-scripts/` | Shell helpers (bash 3.2+ and zsh) registered by `session.sh` (repo root).                                                                                            |
+| `dist/`          | Generated JPG outputs (mirrors `output/` subfolders). Override the folder with `COMFY_DIST_PATH` (see `comfyui/utils/paths.mjs` — every consumer resolves it there). |
+| `output/`        | Raw PNG outputs + run logs. All gitignored.                                                                                                                          |
 
 Each module directory has its own `AGENTS.md` with detailed conventions. Scripts are defined in `package.json` — use `npm run <script>` to invoke them.
 

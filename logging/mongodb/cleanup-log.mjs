@@ -3,8 +3,7 @@ import path from "node:path";
 import { readdir } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
 import { getImageLogConnection } from "./client.mjs";
-
-const DIST_DIR = "dist/";
+import { resolveDistPath } from "../../comfyui/utils/paths.mjs";
 
 /**
  * Strip the file extension from a filename (everything after the last dot).
@@ -19,11 +18,13 @@ export function stripExtension(filename) {
 }
 
 /**
- * Read all files from dist/ recursively and return their extension-stripped
- * basenames as a Set for fast lookup.
+ * Read all files from the dist folder recursively and return their
+ * extension-stripped basenames as a Set for fast lookup.
+ *
+ * @param {string} [distDir] - dist base (defaults to COMFY_DIST_PATH or repo-root dist/)
  */
-export async function readDistFiles() {
-  const allFiles = await readdir(DIST_DIR, {
+export async function readDistFiles(distDir = resolveDistPath(process.env)) {
+  const allFiles = await readdir(distDir, {
     withFileTypes: true,
     recursive: true,
   });
@@ -82,7 +83,7 @@ export async function askConfirmation(stats) {
 /**
  * Main cleanup function.
  *
- * Connects to MongoDB, fetches log entries, compares against dist/,
+ * Connects to MongoDB, fetches log entries, compares against the dist folder,
  * asks for confirmation, then deletes obsolete entries.
  *
  * @param {object} [options]
@@ -90,8 +91,9 @@ export async function askConfirmation(stats) {
  * @returns {Promise<{ deleted: number, total: number, obsolete: number }>}
  */
 export async function main(options = {}) {
-  const distFiles = options.distFiles || (await readDistFiles());
-  console.log(`Found ${distFiles.size} file(s) in ${DIST_DIR}.`);
+  const distDir = resolveDistPath(process.env);
+  const distFiles = options.distFiles || (await readDistFiles(distDir));
+  console.log(`Found ${distFiles.size} file(s) in ${distDir}.`);
 
   const connection = await getImageLogConnection();
   const { collection } = connection;

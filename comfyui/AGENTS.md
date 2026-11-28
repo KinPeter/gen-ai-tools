@@ -7,7 +7,7 @@ Batch image generation against a ComfyUI backend (local or a RunPod pod): build 
 ## Entry points
 
 - `batch.mjs` — `npm run comfy-batch -- <input-name>` (or `comfy-batch <input-name>` after `source ./session.sh`). Finds `<input-name>.yaml` by name anywhere under `<COMFY_ASSETS_PATH>/inputs`, runs every generated workflow sequentially, exits 1 if any job fails.
-- `jobs/convert.mjs` — `npm run convert-all`: re-converts every PNG under `output/` into `dist/`.
+- `jobs/convert.mjs` — `npm run convert-all`: re-converts every PNG under `output/` into the dist folder (`COMFY_DIST_PATH`, default repo-root `dist/`).
 
 ## Architecture
 
@@ -18,7 +18,7 @@ Batch image generation against a ComfyUI backend (local or a RunPod pod): build 
 | `workflow-builder/` | Input YAML + base workflow JSON → queueable workflow JSON                                                                       |
 | `jobs/comfy.mjs`    | `POST /prompt`, poll `GET /history/{id}`, fetch images via `GET /view`, `POST /api/free`                                        |
 | `jobs/save.mjs`     | Download images, write them to `output/`, delete PNG originals after conversion                                                 |
-| `jobs/convert.mjs`  | PNG → JPG with Sharp (quality 90), mirrors `output/` subfolders into `dist/`                                                    |
+| `jobs/convert.mjs`  | PNG → JPG with Sharp (quality 90), mirrors `output/` subfolders into the dist folder                                            |
 | `jobs/log.mjs`      | Build log entries from the final workflow, upload them to MongoDB                                                               |
 | `jobs/config.mjs`   | Server URL + poll interval + `COMFY_ASSETS_PATH` asset folders                                                                  |
 | `utils/`            | CLI args, filename/timestamp helpers, history→image collection, safe path resolution, asset lookup by name, asset-base defaults |
@@ -58,7 +58,7 @@ Pipeline in `workflow-builder/workflow.mjs`: parse YAML → `validateJobData` �
 ### Output conventions
 
 - Raw image: `output/<output-folder>/<prefix>_YYYYMMDDHHmmss.<ext>` (`_<n>` for multi-image jobs); the extension comes from the ComfyUI filename
-- JPG: `dist/<output-folder>/<prefix>_YYYYMMDDHHmmss.jpg` (mirrors `output/` subfolders)
+- JPG: `<dist>/<output-folder>/<prefix>_YYYYMMDDHHmmss.jpg` (mirrors `output/` subfolders); `<dist>` is repo-root `dist/` unless `COMFY_DIST_PATH` is set (see `comfyui/utils/paths.mjs`)
 - PNG originals are deleted after conversion unless `COMFY_KEEP_ORIGINALS=true`
 - Log entry per image, keyed in MongoDB by the extension-stripped filename: input settings plus `model` (the `ckpt_name` of the checkpoint, or the `unet_name` of a `UNETLoader` base workflow), `prompt`, `negative-prompt`, `steps`, `cfg`, `sampler`, `scheduler`, `seed`, `filename`, `generatedIn` (`m:ss`, from the `execution_start`/`execution_success` status messages), `comfyJobId`
 - `output/logs/<input>_<run-ts>.json` is still created empty at the start of a run (subfolder inputs keep their relative subfolder)

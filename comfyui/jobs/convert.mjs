@@ -1,10 +1,12 @@
+import "dotenv/config";
+
 import { mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { resolveDistPath } from "../utils/paths.mjs";
 
 const LOCAL_OUTPUT_PATH = path.join(import.meta.dirname, "..", "..", "output");
-const LOCAL_DIST_PATH = path.join(import.meta.dirname, "..", "..", "dist");
 
 export function distPathFor({ distBaseDir, filename, relativeDir = "" }) {
   return path.join(
@@ -46,7 +48,10 @@ function safeRelativeDir(baseDir, targetDir) {
 
 export async function convertOutputs(
   saved,
-  { outputBaseDir = LOCAL_OUTPUT_PATH, distBaseDir = LOCAL_DIST_PATH } = {},
+  {
+    outputBaseDir = LOCAL_OUTPUT_PATH,
+    distBaseDir = resolveDistPath(process.env),
+  } = {},
 ) {
   for (const file of saved) {
     const src = path.join(file.destDir, file.filename);
@@ -93,6 +98,6 @@ if (isMain) {
   const root = path.join(import.meta.dirname, "..", "..");
   await convertAll({
     outputDir: path.join(root, "output"),
-    distDir: path.join(root, "dist"),
+    distDir: resolveDistPath(process.env),
   });
 }

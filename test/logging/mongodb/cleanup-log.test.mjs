@@ -1,7 +1,14 @@
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // ── Module-level env stub (prevents real MongoDB connection) ──────────────────
 vi.stubEnv("MONGODB_URI", "mongodb://localhost:27017");
+
+// Stub COMFY_DIST_PATH to a temp path so the module never resolves the real
+// repo-root dist/ (the .env file is never read, and no real folder is read).
+const TMP_DIST_DIR = path.join(os.tmpdir(), "cleanup-log-test-dist");
+vi.stubEnv("COMFY_DIST_PATH", TMP_DIST_DIR);
 
 // ── Mock mongodb (hoisted) ───────────────────────────────────────────────────
 // Use a class-like constructor that db() returns a proper object
@@ -160,10 +167,13 @@ describe("cleanup-log", () => {
         await import("../../../logging/mongodb/cleanup-log.mjs");
 
       await readFiles();
-      expect(mockReaddir).toHaveBeenCalledWith("dist/", expect.any(Object));
+      expect(mockReaddir).toHaveBeenCalledWith(
+        TMP_DIST_DIR,
+        expect.any(Object),
+      );
     });
 
-    it("handles empty dist/ directory", async () => {
+    it("handles an empty dist directory", async () => {
       vi.resetModules();
       vi.doMock("node:fs/promises", () => ({
         readdir: vi.fn().mockResolvedValueOnce([]),
@@ -195,9 +205,23 @@ describe("cleanup-log", () => {
       await readFiles();
       expect(mockReaddir).toHaveBeenCalledTimes(1);
       expect(mockReaddir).toHaveBeenCalledWith(
-        "dist/",
+        TMP_DIST_DIR,
         expect.objectContaining({ recursive: true }),
       );
+    });
+
+    it("reads the explicit distDir it receives instead of the env default", async () => {
+      vi.resetModules();
+      const mockReaddir = vi.fn().mockResolvedValue([]);
+      vi.doMock("node:fs/promises", () => ({
+        readdir: mockReaddir,
+      }));
+      const { readDistFiles: readFiles } =
+        await import("../../../logging/mongodb/cleanup-log.mjs");
+
+      const customDir = path.join(os.tmpdir(), "cleanup-log-explicit-dist");
+      await readFiles(customDir);
+      expect(mockReaddir).toHaveBeenCalledWith(customDir, expect.any(Object));
     });
   });
 

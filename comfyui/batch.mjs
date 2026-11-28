@@ -13,15 +13,15 @@ import { cleanupOriginals, saveOutputs } from "./jobs/save.mjs";
 import { convertOutputs } from "./jobs/convert.mjs";
 import { addToLog } from "./jobs/log.mjs";
 import { timestamp } from "./utils/naming.mjs";
+import { resolveDistPath } from "./utils/paths.mjs";
 import { getImageLogConnection } from "../logging/mongodb/client.mjs";
 
 const LOCAL_OUTPUT_PATH = path.join(import.meta.dirname, "..", "output");
-const LOCAL_DIST_PATH = path.join(import.meta.dirname, "..", "dist");
 const KEEP_ORIGINALS = process.env.COMFY_KEEP_ORIGINALS === "true";
 
 export async function runJob(
   job,
-  { config, dbConnection, logPath, logEntries },
+  { config, dbConnection, logPath, logEntries, distBaseDir },
 ) {
   try {
     const promptId = await queuePrompt(config.server, job.workflow);
@@ -47,7 +47,7 @@ export async function runJob(
     });
     await convertOutputs(saved, {
       outputBaseDir: LOCAL_OUTPUT_PATH,
-      distBaseDir: LOCAL_DIST_PATH,
+      distBaseDir,
     });
     if (!KEEP_ORIGINALS) {
       await cleanupOriginals(saved);
@@ -64,6 +64,8 @@ export async function main() {
   const config = await requireConfig();
   console.log(`ComfyUI server: ${config.server} (from ${config.serverSource})`);
   console.log(`Assets: ${config.assetsPath}`);
+  const distBaseDir = resolveDistPath(process.env);
+  console.log(`Dist: ${distBaseDir}`);
   const name = requireInputName();
   const dbConnection = await getImageLogConnection();
   const runTs = timestamp();
@@ -88,6 +90,7 @@ export async function main() {
       dbConnection,
       logPath,
       logEntries,
+      distBaseDir,
     });
     if (!ok) allOk = false;
   }

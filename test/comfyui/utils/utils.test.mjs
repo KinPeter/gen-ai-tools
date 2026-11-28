@@ -1,4 +1,5 @@
 import { chmod, symlink } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { withTempTree } from "../../support/tmp-tree.mjs";
@@ -22,7 +23,9 @@ import {
   collectMatches,
   isFileHere,
   isInsideDir,
+  REPO_DIST_DIR,
   resolveDestDir,
+  resolveDistPath,
 } from "../../../comfyui/utils/paths.mjs";
 import { collectOutputImages } from "../../../comfyui/utils/outputs.mjs";
 import {
@@ -270,5 +273,36 @@ describe("containment and tree walking", () => {
       ).resolves.toEqual([]);
       await expect(collectMatches(root, "ghost.yaml")).resolves.toEqual([]);
     });
+  });
+});
+
+// resolveDistPath owns the dist base: blank falls back to repo-root dist/, a
+// set value is taken literally and must be absolute. No file access happens
+// here — pure string handling.
+describe("resolveDistPath", () => {
+  it("is absolute and named dist", () => {
+    expect(path.isAbsolute(REPO_DIST_DIR)).toBe(true);
+    expect(path.basename(REPO_DIST_DIR)).toBe("dist");
+  });
+
+  it("falls back to repo-root dist when unset or blank", () => {
+    expect(resolveDistPath({})).toBe(REPO_DIST_DIR);
+    expect(resolveDistPath({ COMFY_DIST_PATH: "" })).toBe(REPO_DIST_DIR);
+    expect(resolveDistPath({ COMFY_DIST_PATH: "   " })).toBe(REPO_DIST_DIR);
+  });
+
+  it("takes a set absolute path literally, trimmed and normalized", () => {
+    const tmp = path.join(os.tmpdir(), "resolve-dist-path-test");
+    expect(resolveDistPath({ COMFY_DIST_PATH: tmp })).toBe(tmp);
+    expect(resolveDistPath({ COMFY_DIST_PATH: `  ${tmp}  ` })).toBe(tmp);
+    expect(
+      resolveDistPath({ COMFY_DIST_PATH: `${tmp}/../resolve-dist-path-test/` }),
+    ).toBe(tmp);
+  });
+
+  it("throws for a set non-absolute path", () => {
+    expect(() => resolveDistPath({ COMFY_DIST_PATH: "relative/dist" })).toThrow(
+      /COMFY_DIST_PATH must be an absolute path/,
+    );
   });
 });

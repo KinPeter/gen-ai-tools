@@ -62,3 +62,35 @@ export function resolveDestDir(baseDir, outputFolder) {
   );
   return base;
 }
+
+// Repo-root dist/ is the fallback when COMFY_DIST_PATH is unset, so the
+// example files and the tooling in this repo keep working in a clean checkout.
+// This file owns that base; every consumer resolves the dist folder through
+// resolveDistPath().
+export const REPO_DIST_DIR = path.join(import.meta.dirname, "..", "..", "dist");
+
+/**
+ * Resolve the dist output base from the environment. COMFY_DIST_PATH is taken
+ * literally and must be absolute, so the output never depends on the current
+ * directory; unset or blank falls back to repo-root dist/.
+ *
+ * @param {Record<string, string | undefined>} env
+ * @returns {string} the dist base directory
+ * @throws when a value that is set is not an absolute path.
+ */
+export function resolveDistPath(env = process.env) {
+  const raw = env.COMFY_DIST_PATH;
+  const value = raw == null ? "" : String(raw).trim();
+  if (value === "") return REPO_DIST_DIR;
+  if (!path.isAbsolute(value)) {
+    throw new Error(
+      `COMFY_DIST_PATH must be an absolute path: ${JSON.stringify(value)}`,
+    );
+  }
+  const normalized = path.normalize(value);
+  // Keep the result a bare directory path: strip a trailing separator so it
+  // compares cleanly with the repo-root default (root itself keeps its slash).
+  return normalized === path.sep
+    ? normalized
+    : normalized.replace(/[/\\]+$/, "");
+}

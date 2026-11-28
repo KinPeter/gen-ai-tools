@@ -1,18 +1,15 @@
 import { handleFS, handleImages, handleTrash } from "./handlers/index.mjs";
-import { resolveRepoRoot } from "../../utils/index.mjs";
-
-/** Output directory of generated images, relative to the repo root. */
-const DEFAULT_BASE_DIR = "dist";
+import { resolveDistPath } from "../../../comfyui/utils/paths.mjs";
 
 /**
  * Factory function that creates the three dist-browser API route objects.
  *
  * @param {object} config - Route configuration
- * @param {string} config.baseDir - Base directory for fs/images/trash (default: repo-root/dist)
+ * @param {string} config.baseDir - Base directory for fs/images/trash (default: COMFY_DIST_PATH or repo-root/dist)
  * @returns {Array<{testUrl: Function, serve: Function}>}
  */
 export default function apiDistBrowser(config = {}) {
-  const baseDir = config.baseDir || resolveRepoRoot(DEFAULT_BASE_DIR);
+  const baseDir = config.baseDir || resolveDistPath(process.env);
 
   // --- Route: GET /api/dist-browser/fs/:path ---
   function testFS(url) {

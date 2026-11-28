@@ -102,6 +102,27 @@ describe("apiDistBrowser factory", () => {
     }
   });
 
+  it("defaults the base dir to COMFY_DIST_PATH", async () => {
+    const envBase = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "dist-browser-env-base-"),
+    );
+    try {
+      await fs.promises.writeFile(path.join(envBase, "marker.png"), "png");
+      vi.stubEnv("COMFY_DIST_PATH", envBase);
+
+      const envRoutes = apiDistBrowser();
+      const listingRes = mockRes();
+      envRoutes[0].serve(mockReq("/api/dist-browser/fs"), listingRes);
+      expect(listingRes._state().status).toBe(200);
+      expect(listingRes._state().body.entries).toEqual([
+        { name: "marker.png", type: "file", ext: "png" },
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+      await fs.promises.rm(envBase, { recursive: true, force: true });
+    }
+  });
+
   it("no route answers the removed bulk logs endpoint", () => {
     for (const url of [
       "/api/dist-browser/logs",

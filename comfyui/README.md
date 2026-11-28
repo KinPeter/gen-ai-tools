@@ -18,7 +18,7 @@ Pod lifecycle helpers (`start-pod`, `stop-pod`) are in [runpod/](../runpod/READM
 1. Resolve the ComfyUI server (active pod state `runpod/.active-pod.json`, written by `start-pod`, first, else `COMFY_SERVER`) and the asset base `COMFY_ASSETS_PATH`.
 2. Parse the input YAML into one workflow per prompt × `tries` (brace variants multiply the count).
 3. Queue each workflow (`POST /prompt`), poll `/history/{id}` until success, download the images via `/view`.
-4. Save PNGs under `output/<output-folder>/`, convert to JPG in `dist/` (mirroring subfolders), then delete the PNGs unless `COMFY_KEEP_ORIGINALS=true`.
+4. Save PNGs under `output/<output-folder>/`, convert to JPG in the dist folder (`COMFY_DIST_PATH`, default repo-root `dist/`; mirrors subfolders), then delete the PNGs unless `COMFY_KEEP_ORIGINALS=true`.
 5. Upload a log entry per image to MongoDB (`gen-ai.image-logs`, keyed by the filename without extension).
 6. Free GPU memory (`POST /api/free`) at the end.
 

@@ -8,7 +8,7 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "../../support/server.mjs";
 import { saveOutputs, cleanupOriginals } from "../../../comfyui/jobs/save.mjs";
@@ -77,6 +77,24 @@ describe("output jobs", () => {
     await expect(
       convertAll({ outputDir: path.join(root, "missing"), distDir: root }),
     ).rejects.toThrow();
+  });
+
+  it("resolves the dist base from COMFY_DIST_PATH when none is given", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "img-output-env-"));
+    dirs.push(root);
+    const tmpDist = path.join(root, "dist-from-env");
+    await writeFile(path.join(root, "ok.png"), png);
+    vi.stubEnv("COMFY_DIST_PATH", tmpDist);
+    try {
+      await convertOutputs([{ destDir: root, filename: "ok.png" }], {
+        outputBaseDir: root,
+      });
+      expect(
+        (await readFile(path.join(tmpDist, "ok.jpg"))).length,
+      ).toBeGreaterThan(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("collects nested PNGs and keeps conversion failures isolated", async () => {

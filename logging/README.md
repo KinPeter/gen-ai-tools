@@ -2,12 +2,12 @@
 
 ComfyUI generation logs live in MongoDB: database `gen-ai`, collection `image-logs`, one document per image keyed by the extension-stripped filename. Needs `MONGODB_URI` in `.env`.
 
-| Command                                                  | What it does                                                                       |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `node logging/mongodb/find-log.mjs <filename>`           | print the log entry for an image (accepts a path, any extension)                   |
-| `npm run log-cleanup`                                    | delete entries that have no matching file in `dist/` (asks Y/n)                    |
-| `npm run log-backup`                                     | dump the collection to `output/backup/logs_<timestamp>.json` in 3,000-entry chunks |
-| `node logging/mongodb/bulk-upload-log.mjs a.json,b.json` | insert entries from JSON log files in batches of 3,000                             |
+| Command                                                  | What it does                                                                                                          |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `node logging/mongodb/find-log.mjs <filename>`           | print the log entry for an image (accepts a path, any extension)                                                      |
+| `npm run log-cleanup`                                    | delete entries that have no matching file in the dist folder (`COMFY_DIST_PATH`, default repo-root `dist/`; asks Y/n) |
+| `npm run log-backup`                                     | dump the collection to `output/backup/logs_<timestamp>.json` in 3,000-entry chunks                                    |
+| `node logging/mongodb/bulk-upload-log.mjs a.json,b.json` | insert entries from JSON log files in batches of 3,000                                                                |
 
 Log Finder UI: run `npm run tools-hub`, then open `/logfinder` (page at `logging/logfinder-ui/index.html`, backed by `/api/logging/find-log`).
 
